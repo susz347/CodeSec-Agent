@@ -1,139 +1,234 @@
 # CodeSec-Agent
 
-CodeSec-Agent 是一个面向代码安全审计的 Agent 项目。它不是简单地“调用大模型帮我看代码”，而是把 **PR-Agent 的 Pull Request 审查能力**、**Semgrep/Bandit 等静态安全扫描工具**、**OWASP/CWE 安全知识** 和 **大模型解释能力** 组合起来，生成可读、可展示、可继续扩展的代码安全审计报告。
+CodeSec-Agent 是一个基于 [PR-Agent](https://github.com/qodo-ai/pr-agent) 的代码安全审计与修复建议系统。项目将 Pull Request 代码审查、静态应用安全测试、漏洞知识库和大模型推理能力结合起来，生成结构化的安全审计报告。
 
-## 项目定位
+项目重点不是通用代码点评，而是面向安全场景的代码审查流程：先由静态扫描工具提供可复现的技术证据，再由 Agent 层完成风险解释、影响分析、修复建议和报告生成。
 
-这个项目适合用来展示三个方向的能力：
+## 项目概述
 
-- **工程硕导师双选**：贴近 AI Agent、网络安全、可信软件、关键软件工程。
-- **简历项目**：比普通聊天机器人或简单 RAG 项目更有工程含量，能讲代码审查、静态分析、Prompt 设计和报告生成。
-- **后续找工作**：可以展示一个从代码输入到安全报告输出的完整闭环。
+现代代码审查流程通常擅长发现代码风格、可维护性和逻辑回归问题，但安全审查还需要更稳定的漏洞模式识别能力。Semgrep、Bandit 等静态扫描工具可以发现已知风险模式，而大模型 Agent 更适合解释上下文、归纳影响并生成开发者可理解的修复建议。
 
-一句话介绍：
-
-> CodeSec-Agent 是一个基于 PR-Agent 改造的代码安全审计与修复建议系统，能够结合 Pull Request 代码变更、静态安全扫描结果和大模型分析，输出漏洞解释、风险等级和修复建议。
-
-## 为什么有 PR 代码审查，还需要安全扫描工具？
-
-PR-Agent 更像一个“会读代码的 AI 审查助手”，擅长理解代码变更、总结 PR、发现明显逻辑问题、提出改进建议。但安全扫描工具更像“规则明确的安全检查仪器”，擅长稳定地发现特定漏洞模式。
-
-两者不是替代关系，而是互补关系：
-
-| 能力 | PR-Agent / LLM 审查 | Semgrep / Bandit 等安全扫描 |
-| --- | --- | --- |
-| 主要作用 | 理解代码变更，生成自然语言审查意见 | 按规则发现已知风险模式 |
-| 优势 | 会解释上下文，能给出更像人的建议 | 稳定、可重复、适合批量扫描 |
-| 局限 | 可能漏报、幻觉、输出不稳定 | 不一定懂业务上下文，可能误报 |
-| 在本项目中的角色 | 负责解释、归纳、生成修复建议 | 负责提供可靠的安全发现证据 |
-
-举个简单例子：
-
-- PR-Agent 可能会说：“这段代码缺少输入校验，建议补充校验逻辑。”
-- Semgrep/Bandit 可能会明确指出：“第 23 行使用了危险函数 `eval`，可能导致代码注入。”
-- CodeSec-Agent 要做的是把两者结合起来：先用扫描工具找到具体风险，再让 Agent 解释为什么危险、影响是什么、怎么修。
-
-所以本项目的核心价值不是“又跑了一个扫描工具”，而是：
-
-> 用静态扫描工具提高安全问题发现的稳定性，用大模型提高漏洞解释和修复建议的可读性。
-
-## 核心流程
+CodeSec-Agent 的目标是连接这两类能力：
 
 ```text
 Pull Request / 代码仓库
-  -> PR-Agent 理解代码变更
-  -> Semgrep / Bandit / npm audit 扫描安全问题
-  -> Agent 结合扫描结果和代码上下文进行分析
-  -> 生成漏洞解释、风险等级和修复建议
-  -> 输出 Markdown / Word / PDF 审计报告
+  -> PR-Agent 获取代码变更上下文
+  -> Semgrep / Bandit / npm audit 输出安全扫描结果
+  -> 安全分析 Agent 解释风险
+  -> 生成风险等级、影响分析和修复建议
+  -> 输出 Markdown 安全审计报告
 ```
 
-## 四层架构
+## 为什么需要结合 PR 审查和安全扫描？
+
+PR-Agent 和静态安全扫描工具解决的是不同层次的问题。
+
+| 能力 | PR-Agent / LLM 审查 | 静态安全扫描工具 |
+| --- | --- | --- |
+| 主要作用 | 理解代码变更并生成审查解释 | 基于规则发现已知漏洞模式 |
+| 优势 | 能结合上下文给出自然语言建议 | 稳定、可复现、适合批量扫描 |
+| 局限 | 可能漏掉特定漏洞模式，输出不完全稳定 | 可能缺少业务上下文，存在误报 |
+| 在本项目中的角色 | 负责解释、归纳、排序和修复建议 | 负责发现问题并提供技术证据 |
+
+在 CodeSec-Agent 中，扫描工具负责提供文件路径、行号、规则 ID、风险等级等证据；Agent 层负责把这些证据转化为开发者能理解和执行的安全审计结论。
+
+## 系统架构
 
 ```text
 CodeSec-Agent
-├─ PR-Agent 层
-│  └─ 读取 PR diff，生成代码审查、改进建议和解释
+├─ PR 审查层
+│  └─ 基于 PR-Agent 获取 Pull Request diff 和代码审查上下文
 ├─ 静态扫描层
-│  └─ 接入 Semgrep、Bandit、npm audit，输出 JSON 结果
-├─ Agent 分析层
-│  └─ 结合扫描结果、代码片段、OWASP/CWE 知识生成安全解释
+│  └─ 运行 Semgrep、Bandit、npm audit 收集安全发现
+├─ 安全分析层
+│  └─ 结合扫描结果、代码片段和安全知识生成漏洞解释
 └─ 报告生成层
-   └─ 输出 Markdown、后续扩展 Word/PDF
+   └─ 输出 Markdown 报告，后续扩展 Word/PDF
 ```
 
-## 当前阶段
+## 核心能力
 
-当前仓库处于项目初始化和学习材料阶段，已经包含：
+- 基于 PR-Agent 的 Pull Request 审查工作流。
+- 接入 Semgrep、Bandit 等静态安全扫描工具。
+- 支持 npm audit 依赖漏洞结果接入。
+- 解析并归一化不同扫描器的 JSON 输出。
+- 使用安全审查 Prompt 生成漏洞解释和修复建议。
+- 输出包含风险等级、位置、原因、影响和修复方案的 Markdown 报告。
+- 后续扩展 OWASP/CWE 知识库增强解释依据。
 
-- 项目 README
-- 部署步骤
-- 四周路线图
-- 项目任务清单
-- 简历和面试描述
-- 安全审查 Prompt 草稿
-- 新手学习指南
+## 审计报告内容
 
-下一步目标是先完成一个最小闭环 Demo：
+生成的安全审计报告计划包含：
 
-```text
-PR 输入 -> PR-Agent 自动 Review -> Semgrep/Bandit 扫描 -> Markdown 安全报告
-```
+- 仓库或 Pull Request 基本信息。
+- 扫描结果摘要。
+- 漏洞文件和代码位置。
+- 风险等级。
+- 扫描规则 ID 或漏洞类别。
+- 问题成因分析。
+- 潜在影响说明。
+- 修复建议。
+- CWE、OWASP 或安全编码规范参考。
 
-## 推荐执行顺序
-
-1. 先把本仓库推送到 GitHub。
-2. 创建一个 GitHub 测试仓库。
-3. 部署 PR-Agent GitHub Action。
-4. 创建一个测试 Pull Request，确认 PR-Agent 自动评论。
-5. 本地运行 Semgrep 或 Bandit。
-6. 保存扫描 JSON。
-7. 写脚本把 JSON 转成 Markdown 报告。
-8. 再考虑 RAG、Web 页面、Word/PDF 报告。
-
-## 目录说明
+## 仓库结构
 
 ```text
 CodeSec-Agent/
-  README.md                       # 项目首页
+  README.md
   docs/
-    beginner-guide.md             # 面向新手的学习指南
-    deployment-steps.md           # 部署步骤
-    project-checklist.md          # 项目任务清单
-    resume-and-interview.md       # 简历与面试材料
-    roadmap.md                    # 四周推进路线
+    beginner-guide.md
+    deployment-steps.md
+    project-checklist.md
+    roadmap.md
   prompts/
-    security_review.md            # 安全审查 Prompt
-  push-to-github.ps1              # 本机一键推送脚本
+    security_review.md
+  push-to-github.ps1
 ```
 
-## 技术栈
+计划中的实现模块：
 
-- **代码审查底座**：PR-Agent
-- **静态安全扫描**：Semgrep、Bandit、npm audit
-- **大模型能力**：OpenAI、Claude、Gemini、DeepSeek 等
-- **知识依据**：OWASP Top 10、CWE Top 25、安全编码规范
-- **报告输出**：Markdown，后续可扩展 Word/PDF
-- **自动化集成**：GitHub Actions
+```text
+scanner/
+  run_semgrep.py
+  run_bandit.py
+  parse_results.py
 
-## 第一阶段 Demo 目标
+agent/
+  security_reviewer.py
+  prompts/
+    security_review.md
+    fix_suggestion.md
 
-第一阶段不要追求“大而全”，只追求能展示：
+knowledge/
+  owasp_top10.md
+  cwe_top25.md
+  secure_coding.md
 
-- GitHub PR 触发自动审查。
-- 安全扫描工具能输出 JSON。
-- 项目能把扫描结果整理成 Markdown 报告。
-- 报告里包含漏洞位置、风险等级、原因、影响和修复建议。
+report/
+  generate_markdown.py
+  generate_docx.py
+```
 
-## 简历描述示例
+## 快速开始
 
-**CodeSec-Agent：基于大模型 Agent 的代码安全审计与修复建议系统**
+### 1. 使用 GitHub Actions 运行 PR-Agent
 
-基于 PR-Agent 构建代码审查工作流，接入 Semgrep/Bandit 等静态分析工具，并结合 OWASP/CWE 安全知识库生成漏洞解释与修复建议。系统支持 GitHub PR 自动审查、扫描结果解析、风险等级归纳和 Markdown 审计报告导出，提升代码安全审计效率。
+在目标仓库中创建 `.github/workflows/pr-agent.yml`：
 
-## 学习入口
+```yaml
+name: PR Agent
 
-如果你是第一次接触 Agent、PR-Agent 或代码安全审计，建议先阅读：
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+
+jobs:
+  pr_agent_job:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: write
+      checks: write
+    steps:
+      - name: PR Agent action step
+        uses: qodo-ai/pr-agent@main
+        env:
+          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+在 GitHub 仓库中添加模型 API Key：
+
+```text
+Settings -> Secrets and variables -> Actions -> New repository secret
+```
+
+需要添加：
+
+```text
+OPENAI_KEY = your_api_key
+```
+
+### 2. 运行静态安全扫描
+
+Semgrep：
+
+```bash
+semgrep scan --config auto --json -o semgrep-result.json .
+```
+
+Bandit，适用于 Python 项目：
+
+```bash
+bandit -r . -f json -o bandit-result.json
+```
+
+npm audit，适用于 Node.js 项目：
+
+```bash
+npm audit --json > npm-audit-result.json
+```
+
+### 3. 生成安全审计报告
+
+第一阶段目标是将扫描器 JSON 输出转换为 Markdown 报告：
+
+```text
+semgrep-result.json / bandit-result.json
+  -> 结果解析
+  -> 发现项归一化
+  -> 安全分析 Prompt
+  -> Markdown 审计报告
+```
+
+## 开发路线
+
+### Phase 1: PR 审查基线
+
+- 配置 PR-Agent GitHub Action。
+- 验证 Pull Request 自动审查评论。
+- 记录最小可运行配置。
+
+### Phase 2: 静态扫描接入
+
+- 本地运行 Semgrep 和 Bandit。
+- 将扫描结果导出为 JSON。
+- 将不同扫描器结果归一化为统一结构。
+
+### Phase 3: 安全分析 Agent
+
+- 设计安全审查 Prompt。
+- 结合扫描发现和代码片段进行分析。
+- 生成漏洞解释、影响分析和修复建议。
+
+### Phase 4: 报告生成
+
+- 生成 Markdown 安全审计报告。
+- 增加风险汇总和发现项表格。
+- 增加 CWE/OWASP 参考依据。
+- 扩展 Word/PDF 报告导出。
+
+## 设计原则
+
+- **证据优先**：以扫描器发现作为安全分析的基础输入。
+- **面向开发者**：报告输出应便于开发者理解和修复，而不是只给安全人员阅读。
+- **模块可替换**：扫描、分析和报告生成模块应保持低耦合。
+- **审慎结论**：系统用于辅助安全审查，不声称替代专业安全审计。
+
+## 当前状态
+
+当前仓库处于文档设计和工作流初始化阶段。下一阶段目标是完成最小可运行闭环：
+
+```text
+PR-Agent 审查
+  + Semgrep/Bandit JSON 扫描
+  + Markdown 安全审计报告
+```
+
+## 文档
 
 - [新手学习指南](docs/beginner-guide.md)
 - [部署步骤](docs/deployment-steps.md)
