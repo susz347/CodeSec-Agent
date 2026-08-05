@@ -1,85 +1,118 @@
-# Roadmap
+# 开发路线图
 
-## Week 1: PR-Agent Baseline
+本文描述 CodeSec-Agent 从最小可运行闭环到完整安全审计工作流的阶段规划。
 
-Goal: run the original PR-Agent successfully.
+## Phase 1: PR 审查基线
 
-Tasks:
+目标：跑通原始 PR-Agent，建立 Pull Request 审查入口。
 
-- Prepare GitHub test repository.
-- Add PR-Agent GitHub Action.
-- Add model API key to GitHub Secrets.
-- Open a test pull request.
-- Collect screenshots and output examples.
+主要任务：
 
-Deliverables:
+- 准备 GitHub 测试仓库。
+- 添加 PR-Agent GitHub Action。
+- 配置模型 API Key。
+- 创建测试 Pull Request。
+- 验证 PR-Agent 自动生成审查评论。
 
-- Working PR-Agent review comment.
-- Screenshot of GitHub Actions run.
-- Notes on configuration and API model used.
+交付物：
 
-## Week 2: Static Security Scan
+- 可运行的 PR-Agent GitHub Action。
+- 一次成功的 PR 审查记录。
+- 最小配置说明。
 
-Goal: add traditional security scanning.
+## Phase 2: 静态安全扫描
 
-Tasks:
+目标：接入传统安全扫描工具，获得可复现的安全发现。
 
-- Run Semgrep on the test repository.
-- Run Bandit if the repository contains Python code.
-- Run npm audit if the repository contains Node.js dependencies.
-- Save scanner output as JSON.
-- Write a simple parser to summarize findings.
+主要任务：
 
-Deliverables:
+- 使用 Semgrep 扫描测试仓库。
+- 对 Python 项目使用 Bandit。
+- 对 Node.js 项目使用 npm audit。
+- 将扫描结果保存为 JSON。
+- 初步解析扫描器输出。
+
+交付物：
 
 - `semgrep-result.json`
-- `bandit-result.json` or `npm-audit-result.json`
-- Initial Markdown summary.
+- `bandit-result.json` 或 `npm-audit-result.json`
+- 初始扫描结果摘要。
 
-## Week 3: LLM Security Analysis
+## Phase 3: 结果归一化
 
-Goal: transform raw scanner output into useful review explanations.
+目标：将不同扫描器输出转换为统一 finding 数据结构。
 
-Tasks:
+主要任务：
 
-- Design prompt for security review.
-- Feed scanner results and code snippets into LLM.
-- Generate vulnerability explanation and fix suggestions.
-- Add OWASP/CWE references manually at first.
+- 设计通用 finding 字段。
+- 解析 Semgrep 结果。
+- 解析 Bandit 结果。
+- 解析 npm audit 结果。
+- 统一风险等级、文件位置和规则信息。
 
-Deliverables:
+交付物：
 
-- `security_review.md` prompt.
-- Sample LLM analysis output.
-- Improved Markdown report.
+- 扫描结果解析模块。
+- 统一 finding 数据结构说明。
+- 示例归一化输出。
 
-## Week 4: Portfolio Packaging
+## Phase 4: Agent 安全分析
 
-Goal: make the project presentable.
+目标：将原始扫描结果转换为可读的安全审查结论。
 
-Tasks:
+主要任务：
 
-- Write README.
-- Draw architecture diagram.
-- Prepare demo repository.
-- Generate one complete sample audit report.
-- Record a 2-3 minute demo video.
-- Write resume bullets and interview script.
+- 设计安全审查 Prompt。
+- 将 finding、代码片段和安全参考传入分析流程。
+- 生成漏洞解释、影响分析和修复建议。
+- 标注确认问题、可疑问题和可能误报。
 
-Deliverables:
+交付物：
 
-- Public GitHub repository.
-- Project screenshots.
-- Demo report.
-- Resume description.
-- Interview explanation.
+- `prompts/security_review.md`
+- 示例 Agent 分析输出。
+- 改进版 Markdown 报告。
 
-## Later Upgrades
+## Phase 5: 报告生成
 
-- Add RAG knowledge base for OWASP/CWE.
-- Build a small web UI.
-- Export Word/PDF report.
-- Add GitHub issue or PR comment integration.
-- Support multi-language repositories.
-- Add severity scoring and false-positive filtering.
+目标：形成稳定的审计报告输出能力。
 
+主要任务：
+
+- 生成 Markdown 报告。
+- 增加风险汇总。
+- 增加发现项明细表。
+- 增加修复建议和参考链接。
+- 保存完整示例报告。
+
+交付物：
+
+- Markdown 报告生成模块。
+- 示例安全审计报告。
+- 报告字段说明。
+
+## Phase 6: 自动化与集成
+
+目标：将安全扫描和报告生成接入 CI 或 PR 工作流。
+
+主要任务：
+
+- 添加安全扫描 GitHub Action。
+- 保存扫描结果和报告产物。
+- 在 PR 评论中输出报告摘要。
+- 支持按风险阈值提示或阻断合并。
+
+交付物：
+
+- `.github/workflows/security-scan.yml`
+- PR 报告摘要示例。
+- 自动化运行说明。
+
+## 后续增强
+
+- 建立 OWASP/CWE 知识库。
+- 引入 RAG 检索增强。
+- 支持 Word/PDF 报告导出。
+- 支持多语言仓库。
+- 增加误报过滤和风险评分。
+- 构建 Web 可视化界面。

@@ -1,44 +1,64 @@
-# Project Checklist
+# 项目任务清单
 
-## Setup
+本文用于跟踪 CodeSec-Agent 的工程推进状态。任务按系统能力拆分，而不是按个人展示材料拆分。
 
-- [ ] Create GitHub test repository.
-- [ ] Add PR-Agent GitHub Action.
-- [ ] Add model API key to GitHub Secrets.
-- [ ] Open first pull request.
-- [ ] Confirm PR-Agent review appears.
+## 1. PR 审查入口
 
-## Scanner Integration
+- [ ] 创建或选择 GitHub 测试仓库。
+- [ ] 添加 PR-Agent GitHub Action。
+- [ ] 配置模型 API Key。
+- [ ] 创建测试 Pull Request。
+- [ ] 验证 PR-Agent 自动审查评论。
+- [ ] 记录最小可运行配置。
 
-- [ ] Run Semgrep.
-- [ ] Run Bandit for Python code.
-- [ ] Run npm audit for Node.js code.
-- [ ] Save scanner JSON files.
-- [ ] Parse scanner output.
+## 2. 静态扫描接入
 
-## Agent Analysis
+- [ ] 运行 Semgrep。
+- [ ] 运行 Bandit 扫描 Python 代码。
+- [ ] 运行 npm audit 扫描 Node.js 依赖。
+- [ ] 保存扫描器 JSON 输出。
+- [ ] 设计统一 finding 数据结构。
+- [ ] 实现扫描结果解析逻辑。
 
-- [ ] Create security review prompt.
-- [ ] Feed scanner output into LLM.
-- [ ] Add code snippet context.
-- [ ] Generate first security explanation.
-- [ ] Improve prompt based on bad outputs.
+## 3. 安全分析 Agent
 
-## Report
+- [ ] 设计安全审查 Prompt。
+- [ ] 将扫描结果传入分析流程。
+- [ ] 补充相关代码片段上下文。
+- [ ] 区分确认问题、可疑模式和误报。
+- [ ] 生成漏洞原因、影响和修复建议。
+- [ ] 增加 CWE/OWASP 参考依据。
 
-- [ ] Generate Markdown report.
-- [ ] Add risk level.
-- [ ] Add vulnerability location.
-- [ ] Add fix suggestion.
-- [ ] Add reference section.
-- [ ] Save one complete sample report.
+## 4. 报告生成
 
-## Portfolio
+- [ ] 生成 Markdown 审计报告。
+- [ ] 增加扫描摘要。
+- [ ] 增加风险等级统计。
+- [ ] 增加发现项表格。
+- [ ] 增加每个漏洞的修复建议。
+- [ ] 保存一份完整示例报告。
 
-- [ ] Write README.
-- [ ] Add architecture diagram.
-- [ ] Add screenshots.
-- [ ] Record demo video.
-- [ ] Write resume bullets.
-- [ ] Prepare 1-minute explanation.
+## 5. 自动化集成
 
+- [ ] 添加安全扫描 GitHub Action。
+- [ ] 将扫描结果作为构建产物保存。
+- [ ] 支持在 PR 评论中引用报告摘要。
+- [ ] 定义失败阈值，例如高危漏洞阻断合并。
+
+## 6. 文档与发布
+
+- [ ] 完善 README。
+- [ ] 完善部署文档。
+- [ ] 补充架构说明。
+- [ ] 补充示例输入和示例报告。
+- [ ] 说明系统边界和安全限制。
+- [ ] 准备一个可复现的 Demo 流程。
+
+## 7. 后续增强
+
+- [ ] 增加 OWASP/CWE 知识库目录。
+- [ ] 引入 RAG 检索增强。
+- [ ] 支持 Word/PDF 报告导出。
+- [ ] 支持多语言仓库。
+- [ ] 增加误报过滤策略。
+- [ ] 增加 Web 可视化界面。

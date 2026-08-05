@@ -1,17 +1,20 @@
-# Deployment Steps
+# 部署与运行步骤
 
-## Phase 1: Run PR-Agent With GitHub Actions
+本文说明 CodeSec-Agent 第一阶段所需的运行方式，包括 PR-Agent GitHub Action、本地 PR-Agent CLI、Semgrep、Bandit 和 npm audit。
 
-### Prerequisites
+## 前置条件
 
-- GitHub account.
-- A test repository.
-- One LLM API key, such as OpenAI, Claude, Gemini, DeepSeek, or another provider supported by PR-Agent.
-- Basic GitHub Actions knowledge.
+运行第一阶段 Demo 前，需要准备：
 
-### Add Workflow
+- GitHub 账号。
+- 一个用于测试的 GitHub 仓库。
+- 一个可用的大模型 API Key，例如 OpenAI、Claude、Gemini、DeepSeek 等。
+- Git 和 Python 环境。
+- 可选：Docker，用于运行 Semgrep 容器版本。
 
-Create `.github/workflows/pr-agent.yml` in the test repository:
+## Phase 1: 使用 GitHub Actions 运行 PR-Agent
+
+在目标仓库中创建 `.github/workflows/pr-agent.yml`：
 
 ```yaml
 name: PR Agent
@@ -32,69 +35,69 @@ jobs:
       checks: write
     steps:
       - name: PR Agent action step
-        uses: the-pr-agent/pr-agent@main
+        uses: qodo-ai/pr-agent@main
         env:
           OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-### Add Secret
-
-In GitHub:
+然后在 GitHub 仓库中添加 Secret：
 
 ```text
 Settings -> Secrets and variables -> Actions -> New repository secret
 ```
 
-Add:
+添加：
 
 ```text
 OPENAI_KEY = your_api_key
 ```
 
-`GITHUB_TOKEN` is automatically provided by GitHub Actions.
+`GITHUB_TOKEN` 由 GitHub Actions 自动提供，不需要手动创建。
 
-### Verify
+## 验证 PR-Agent
 
-1. Create a new branch.
-2. Make a small code change.
-3. Open a pull request.
-4. Confirm PR-Agent comments on the PR.
-5. Save screenshots of the review result.
+1. 新建一个分支。
+2. 提交一处小的代码变更。
+3. 创建 Pull Request。
+4. 查看 Actions 是否成功运行。
+5. 查看 PR 下是否出现 PR-Agent 的审查评论。
 
-## Phase 2: Run PR-Agent Locally
+验证通过后，说明 PR 审查入口已经跑通。
 
-Install:
+## Phase 2: 本地运行 PR-Agent CLI
+
+本地 CLI 适合后续调试和二次开发。
+
+安装：
 
 ```bash
 pip install pr-agent
 ```
 
-Set API key on Windows PowerShell:
+在 Windows PowerShell 设置 API Key：
 
 ```powershell
 $env:OPENAI_KEY="your_api_key"
 ```
 
-Run:
+对指定 PR 执行 review：
 
 ```bash
 pr-agent --pr_url https://github.com/owner/repo/pull/123 review
 ```
 
-## Phase 3: Add Static Security Scanners
+## Phase 3: 运行静态安全扫描
 
 ### Semgrep
 
-Install or run with Docker.
-
-Basic command:
+基础命令：
 
 ```bash
 semgrep scan --config auto --json -o semgrep-result.json .
 ```
 
-Docker on Windows:
+Windows Docker 示例：
 
 ```bash
 docker run --rm -v "%cd%:/src" semgrep/semgrep semgrep scan --config auto --json -o /src/semgrep-result.json /src
@@ -102,7 +105,7 @@ docker run --rm -v "%cd%:/src" semgrep/semgrep semgrep scan --config auto --json
 
 ### Bandit
 
-For Python projects:
+Bandit 适用于 Python 项目：
 
 ```bash
 pip install bandit
@@ -111,25 +114,42 @@ bandit -r . -f json -o bandit-result.json
 
 ### npm audit
 
-For Node.js projects:
+npm audit 适用于 Node.js 项目：
 
 ```bash
 npm audit --json > npm-audit-result.json
 ```
 
-## Phase 4: Generate Security Report
+## Phase 4: 生成安全审计报告
 
-Minimum report fields:
+第一版报告可以先基于扫描器 JSON 文件生成 Markdown。
 
-- Project name.
-- Scan time.
-- Scanner results.
-- Vulnerability location.
-- Risk level.
-- Cause.
-- Impact.
-- Fix suggestion.
-- Reference knowledge, such as CWE or OWASP.
+最小字段建议：
 
-First output format should be Markdown. Word/PDF export can be added later.
+- 项目名称。
+- 扫描时间。
+- 扫描器名称。
+- 漏洞文件和行号。
+- 风险等级。
+- 问题原因。
+- 潜在影响。
+- 修复建议。
+- CWE、OWASP 或安全编码规范参考。
 
+## 常见问题
+
+### GitHub 页面没有更新
+
+如果本地已经提交但 GitHub 没有变化，通常是还没有执行 `git push`。在本机 PowerShell 中运行：
+
+```powershell
+git push
+```
+
+### Codex 无法直接推送 GitHub
+
+Codex 环境可能无法读取本机 GitHub 凭据。推荐由 Codex 完成文件修改和 commit，再由本机 PowerShell 执行 `git push`。
+
+### 扫描器没有发现问题
+
+这不一定代表项目完全安全。可能原因包括：测试代码没有典型漏洞、规则集覆盖不足、语言不匹配或扫描路径不正确。

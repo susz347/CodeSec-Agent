@@ -78,6 +78,7 @@ CodeSec-Agent/
   docs/
     beginner-guide.md
     deployment-steps.md
+    prerequisites.md
     project-checklist.md
     roadmap.md
   prompts/
@@ -231,6 +232,7 @@ PR-Agent 审查
 ## 文档
 
 - [新手学习指南](docs/beginner-guide.md)
+- [前置知识](docs/prerequisites.md)
 - [部署步骤](docs/deployment-steps.md)
 - [项目路线图](docs/roadmap.md)
 - [项目任务清单](docs/project-checklist.md)
