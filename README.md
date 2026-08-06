@@ -139,7 +139,7 @@ report/
 
 ## 当前状态
 
-当前仓库已提交 DeepSeek PR-Agent 的共享配置与 GitHub Actions workflow，本地 CLI 安装路径也已验证。完成 GitHub Secret、短期 PAT 和同一测试 PR 的端到端验证后，再推进静态扫描与报告能力：
+当前实现分支已包含 DeepSeek PR-Agent 的共享配置与 GitHub Actions workflow，本地 CLI 安装路径也已验证。下一步须由用户批准并合并启用 PR，再配置凭据，从更新后的 `main` 创建一次性验证 PR；验证后关闭该 PR 并清理分支与探针，再推进静态扫描和报告能力：
 
 ```text
 PR-Agent 审查

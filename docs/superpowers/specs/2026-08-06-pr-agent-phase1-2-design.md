@@ -1,6 +1,6 @@
 # PR-Agent Phase 1/2 部署设计
 
-> **实施勘误（2026-08-06）：** 本地 PyPI 包最终固定为 `pr-agent==0.39.0`，GitHub Action 仍固定到 `v0.41.0` 的完整 SHA；两个发布渠道暂时不同。最终 workflow 移除了 `issues: write`，增加同仓库/非 Bot 限制与 15 分钟超时，并让 `synchronize` 仅执行 `/review`。最终共享 TOML 禁用 fallback 并加入提示注入防护。详细操作以 `docs/deployment-steps.md` 为准，下文保留原设计决策上下文。
+> **实施勘误（2026-08-06）：** 本地 PyPI 包固定为 `pr-agent==0.39.0`，GitHub Action 固定到 `v0.41.0` 的完整 SHA；两个发布渠道暂时不同。最终 workflow 移除了 `issues: write`，增加同仓库/非 Bot 限制与 15 分钟超时，并让 `synchronize` 仅执行 `/review`。最终共享 TOML 禁用 fallback，并加入用于降低提示注入风险（非绝对隔离）的审查指令。启用 PR 先经用户批准合并，端到端验证再从更新后的 `main` 创建短生命周期 PR；详细操作以 `docs/deployment-steps.md` 为准。
 
 ## 1. 目标
 
@@ -18,7 +18,7 @@
 - 首选模型：`deepseek/deepseek-v4-flash`。
 - 用户已有 DeepSeek API Key，但不会将密钥发送到对话或写入仓库。
 - 用户尚无 GitHub Personal Access Token；Phase 2 包含最小权限 Token 的创建说明。
-- PR-Agent 固定使用 `0.41.0`，避免部署结果随上游 `main` 变化。
+- GitHub Action 固定到 PR-Agent `v0.41.0` 的完整 SHA，本地 PyPI CLI 固定为 `pr-agent==0.39.0`。
 - 首版仅执行 review，不自动执行 describe 或 improve。
 - 首版只处理同一仓库分支创建的 PR，不支持来自 Fork 的 PR。
 
@@ -66,7 +66,7 @@ pull_request:
   types: [opened, reopened, ready_for_review, synchronize]
 ```
 
-首版不监听 `issue_comment`，防止公共仓库中的任意评论反复消耗模型额度；不使用 `pull_request_target`，避免让不受信任的 Fork PR 获得仓库 Secret 上下文。
+首版不监听 `issue_comment`，防止公共仓库中的任意评论反复消耗模型额度；不使用 `pull_request_target`，避免让不受信任的 Fork PR 获得仓库 Secret 上下文。Workflow 还跳过 Bot 和 Fork，`synchronize` 仅执行 `/review`，单次运行上限为 15 分钟。
 
 ### 4.3 权限
 
@@ -75,7 +75,6 @@ Workflow 使用最小可行权限：
 ```yaml
 permissions:
   contents: read
-  issues: write
   pull-requests: write
 ```
 
@@ -92,6 +91,8 @@ the-pr-agent/pr-agent@570f67ed5fc8db5be74c18df070bc20079b64b0d
 固定完整 SHA 可避免可变分支或标签在未审查的情况下改变运行代码。
 
 ### 4.5 模型与 Secret
+
+review 会把 PR diff、标题、描述、评论及相关代码上下文发送给 DeepSeek。私有或商业仓库必须先确认组织政策；首次验证不得使用含密钥、客户数据或生产数据的 PR。
 
 GitHub 仓库需要人工创建以下 Repository Secret：
 
@@ -117,6 +118,7 @@ env:
 - 关闭不在本轮范围内的自动 describe 和 improve。
 - 为 review 增加安全审查指令。
 - 要求输出区分确认问题、可疑问题和可能误报。
+- 禁用备用模型，并把 PR 内容视为不可信数据以降低提示注入风险；这不是绝对隔离，仍需人工复核。
 
 配置文件不得包含 API Key、GitHub Token 或其他凭据。
 
@@ -129,7 +131,7 @@ env:
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install pr-agent==0.41.0
+.\.venv\Scripts\python.exe -m pip install pr-agent==0.39.0
 ```
 
 `.venv/` 必须加入 `.gitignore`。
@@ -141,19 +143,13 @@ py -3.12 -m venv .venv
 - Repository access：仅 `susz347/CodeSec-Agent`。
 - Contents：Read。
 - Pull requests：Read and write。
-- Issues：Read and write。
 - 建议过期时间：30 天。
 
 如果 PR-Agent 在实际调用中返回权限不足，只增加错误明确指出的必要权限，不改用覆盖全部仓库的长期 Token。
 
 ### 5.3 本地环境变量
 
-用户在当前 PowerShell 会话中设置：
-
-```powershell
-$env:DEEPSEEK_API_KEY="<DeepSeek API Key>"
-$env:GITHUB__USER_TOKEN="<GitHub Fine-grained PAT>"
-```
+用户在自己的当前 PowerShell 会话中通过 `Read-Host -AsSecureString` 注入 `DEEPSEEK_API_KEY` 和 `GITHUB__USER_TOKEN`，不在命令历史中直接写明文值。
 
 密钥不得写入 PowerShell 脚本、`.pr_agent.toml`、`.env` 或 Git 历史。
 
@@ -164,10 +160,11 @@ $env:GITHUB__USER_TOKEN="<GitHub Fine-grained PAT>"
 ```powershell
 .\.venv\Scripts\pr-agent.exe `
   --pr_url https://github.com/susz347/CodeSec-Agent/pull/<PR编号> `
+  --config-branch main `
   review
 ```
 
-CLI 与 GitHub Actions 都以目标仓库中的 `.pr_agent.toml` 为非敏感配置来源。
+正式验证时，CLI 与 GitHub Actions 都以默认分支 `main` 中已审核的 `.pr_agent.toml` 为非敏感配置来源。启用 PR 不作为端到端验证对象；如合并前必须本地预检，可由维护者临时使用 `--config-branch codex/pr-agent-phase1-2`，但不得用于 Action 或长期流程。
 
 运行结束后从当前会话清除凭据：
 
@@ -181,10 +178,11 @@ Remove-Item Env:GITHUB__USER_TOKEN
 ### 6.1 GitHub Actions
 
 ```text
-仓库内分支创建或更新 PR
+启用 PR 经用户批准并合并到 main
+→ 从更新后的 main 创建同仓库短生命周期验证 PR
 → GitHub 触发 pull_request workflow
 → GitHub 注入 GITHUB_TOKEN 和 DEEPSEEK_API_KEY
-→ PR-Agent 读取 PR diff 与 .pr_agent.toml
+→ PR-Agent 读取验证 PR diff 与 main 中可信的 .pr_agent.toml
 → PR-Agent 调用 DeepSeek
 → PR-Agent 把审查评论写回 PR
 ```
@@ -195,7 +193,7 @@ Remove-Item Env:GITHUB__USER_TOKEN
 用户在 PowerShell 临时设置两个 Token
 → pr-agent CLI 读取 PR URL
 → 使用 GitHub PAT 获取 PR 上下文
-→ 读取目标仓库的 .pr_agent.toml
+→ 显式读取 main 中可信的 .pr_agent.toml
 → 调用 DeepSeek
 → 使用 GitHub PAT 把评论写回 PR
 → 用户清除当前会话环境变量
@@ -212,7 +210,7 @@ Remove-Item Env:GITHUB__USER_TOKEN
 | GitHub 403 | 检查 workflow 权限或 Fine-grained PAT 的仓库与权限范围 |
 | Fork PR 无法读取 Secret | 属于首版明确不支持的场景，不切换到 `pull_request_target` 绕过 |
 | CLI 找不到 Python 3.12 | 安装 Python 3.12 并确认 `py -3.12 --version` 可用 |
-| CLI 找不到配置 | 确认命令从仓库根目录执行且 `.pr_agent.toml` 已提交到目标分支 |
+| CLI 找不到配置 | 确认命令从仓库根目录执行，并以 `--config-branch main` 读取默认分支配置 |
 
 错误日志允许包含状态码、请求 ID 和错误类型，但不得打印完整 API Key 或 GitHub Token。
 
@@ -229,9 +227,12 @@ Remove-Item Env:GITHUB__USER_TOKEN
    - `pr-agent --help`。
    - 使用临时环境变量对测试 PR 执行一次 `review`。
 3. GitHub 端到端测试
-   - 先把 workflow 和配置合并到默认分支。
-   - 从同一仓库创建测试分支和测试 PR。
+   - 启用 PR 先完成静态/人工审查，并在用户明确批准后合并到默认分支。
+   - 配置 Secret/PAT 前确认 PR 数据会发送给 DeepSeek，并遵守组织政策。
+   - 从更新后的 `main` 创建同仓库短生命周期验证分支和不含敏感数据的验证 PR。
    - 确认 GitHub Actions 成功且 PR 出现审查评论。
+   - 使用 `--config-branch main` 对同一验证 PR 执行本地 CLI review。
+   - 验证后关闭 PR，不合并探针，并删除远端/本地验证分支及临时文件。
 
 涉及真实 API 调用的验证可能产生少量 DeepSeek 费用。执行前只确认密钥已由用户安全设置，不读取或回显密钥值。
 
@@ -240,18 +241,20 @@ Remove-Item Env:GITHUB__USER_TOKEN
 Phase 1 完成条件：
 
 - `.github/workflows/pr-agent.yml` 和 `.pr_agent.toml` 已在默认分支。
+- 启用 PR 已经用户明确批准并合并，且未被当作端到端验证 PR。
 - GitHub Repository Secret `DEEPSEEK_API_KEY` 已配置。
-- 同仓库测试 PR 能触发 Action。
+- 从更新后的 `main` 创建的同仓库短生命周期验证 PR 能触发 Action。
 - Action 成功调用 DeepSeek 并发布审查评论。
 - Workflow 日志没有泄露凭据。
 
 Phase 2 完成条件：
 
 - Python 3.12 虚拟环境创建成功。
-- `pr-agent==0.41.0` 安装成功。
+- `pr-agent==0.39.0` 安装成功。
 - Fine-grained PAT 仅授权当前仓库和必要权限。
-- 本地 CLI 能对测试 PR 执行 `review` 并发布评论。
+- 本地 CLI 使用 `--config-branch main` 对同一验证 PR 执行 `review` 并发布评论。
 - 测试完成后当前 PowerShell 会话中的凭据已清除。
+- 验证 PR 已关闭且未合并，远端/本地验证分支和临时探针已删除。
 
 ## 10. 非目标
 

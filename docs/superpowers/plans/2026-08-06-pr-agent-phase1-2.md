@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Deploy PR-Agent 0.41.0 with DeepSeek V4 Flash in GitHub Actions and in a local Windows Python 3.12 virtual environment, then verify both paths against one same-repository pull request.
+**Goal:** Deploy the SHA-pinned PR-Agent v0.41.0 GitHub Action and the PyPI-pinned `pr-agent==0.39.0` local CLI with DeepSeek V4 Flash, then verify both paths against one short-lived same-repository pull request created from the updated default branch.
 
 **Architecture:** Keep all non-secret model and review behavior in one root `.pr_agent.toml`. GitHub Actions owns event handling, least-privilege permissions, and repository-secret injection; the local CLI owns only a short-lived process environment containing the DeepSeek key and a repository-scoped GitHub token. No wrapper application, plugin system, database, or scanner integration is introduced in this phase.
 
-**Tech Stack:** GitHub Actions, PR-Agent 0.41.0, DeepSeek API, Python 3.12, PowerShell, TOML, YAML, GitHub CLI.
+**Tech Stack:** GitHub Actions (PR-Agent v0.41.0), local PR-Agent 0.39.0, DeepSeek API, Python 3.12, PowerShell, TOML, YAML, GitHub CLI.
 
 ---
 
-> **实施勘误（2026-08-06）：** 后续验证确认 PyPI 可安装的本地版本固定为 `pr-agent==0.39.0`，GitHub Action 仍固定到 `v0.41.0` 的完整 SHA；两个发布渠道暂时不同。最终 workflow 还移除了 `issues: write`，增加同仓库/非 Bot 限制与 15 分钟超时，并让 `synchronize` 仅执行 `/review`。最终共享 TOML 禁用 fallback 并加入提示注入防护。下方任务记录保留为原批准计划，实际操作以仓库配置和 `docs/deployment-steps.md` 为准。
+> **实施勘误（2026-08-06）：** PyPI 本地版本固定为 `pr-agent==0.39.0`，GitHub Action 固定到 `v0.41.0` 的完整 SHA；两个发布渠道暂时不同。最终 workflow 移除了 `issues: write`，增加同仓库/非 Bot 限制与 15 分钟超时，并让 `synchronize` 仅执行 `/review`。最终共享 TOML 禁用 fallback，并加入用于降低提示注入风险（非绝对隔离）的审查指令。启用 PR 需经用户批准先合并；端到端验证只在更新后的 `main` 上创建短生命周期验证 PR，并从默认分支读取可信配置。实际操作以仓库配置和 `docs/deployment-steps.md` 为准。
 
 ## Scope and maintainability guardrails
 
@@ -28,7 +28,7 @@
 - Create `.github/workflows/pr-agent.yml`: automatic same-repository PR review.
 - Modify `docs/deployment-steps.md`: authoritative DeepSeek-based Phase 1/2 instructions and troubleshooting.
 - Modify `README.md`: replace duplicated setup commands with a short pointer to the authoritative guide.
-- Use `.venv/` locally: untracked Python environment containing `pr-agent==0.41.0`.
+- Use `.venv/` locally: untracked Python environment containing `pr-agent==0.39.0`.
 
 ### Task 1: Create an isolated implementation branch
 
@@ -179,21 +179,21 @@ Expected: both commands exit `0` and all installed files remain under ignored `.
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install pr-agent==0.41.0
+.\.venv\Scripts\python.exe -m pip install pr-agent==0.39.0
 ```
 
-Expected: installation exits `0` and reports `Successfully installed` or `Requirement already satisfied` for `pr-agent==0.41.0`.
+Expected: installation exits `0` and reports `Successfully installed` or `Requirement already satisfied` for `pr-agent==0.39.0`.
 
 - [ ] **Step 4: Verify the installed package and executable**
 
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe -c "from importlib.metadata import version; assert version('pr-agent') == '0.41.0'; print(version('pr-agent'))"
+.\.venv\Scripts\python.exe -c "from importlib.metadata import version; assert version('pr-agent') == '0.39.0'; print(version('pr-agent'))"
 .\.venv\Scripts\pr-agent.exe --help
 ```
 
-Expected: first command prints `0.41.0`; second command exits `0` and displays PR-Agent CLI usage.
+Expected: first command prints `0.39.0`; second command exits `0` and displays PR-Agent CLI usage.
 
 - [ ] **Step 5: Confirm that local installation did not dirty Git**
 
@@ -326,7 +326,7 @@ Run:
 .\.venv\Scripts\python.exe -c "import yaml; from pathlib import Path; data=yaml.safe_load(Path('.github/workflows/pr-agent.yml').read_text(encoding='utf-8')); assert data['name']=='PR Agent Security Review'; assert 'jobs' in data; print('YAML OK')"
 ```
 
-Expected: prints `YAML OK`. `pr-agent==0.41.0` supplies the YAML dependency used for this syntax check.
+Expected: prints `YAML OK`. `pr-agent==0.39.0` supplies the YAML dependency used for this syntax check.
 
 - [ ] **Step 4: Verify security-sensitive workflow invariants**
 
@@ -397,6 +397,8 @@ Expected: command fails because the current documentation still contains the old
 
 Use this structure and exact operational values:
 
+> Historical draft retained as plan context; this fenced example is non-executable and is superseded by Tasks 8–12 plus the current `docs/deployment-steps.md` bootstrap sequence.
+
 ```markdown
 # 部署与运行步骤
 
@@ -454,7 +456,7 @@ deepseek/deepseek-v4-flash
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install pr-agent==0.41.0
+.\.venv\Scripts\python.exe -m pip install pr-agent==0.39.0
 .\.venv\Scripts\pr-agent.exe --help
 ```
 
@@ -555,7 +557,7 @@ Run:
 ```powershell
 $stale = Select-String -Path 'README.md','docs/deployment-steps.md' -Pattern 'qodo-ai/pr-agent@main|OPENAI_KEY|\$env:OPENAI_KEY' -AllMatches
 if ($stale) { throw 'Stale OpenAI-only or mutable-action documentation remains' }
-$required = @('DEEPSEEK_API_KEY','deepseek/deepseek-v4-flash','pr-agent==0.41.0','GITHUB__USER_TOKEN')
+$required = @('DEEPSEEK_API_KEY','deepseek/deepseek-v4-flash','pr-agent==0.39.0','GITHUB__USER_TOKEN')
 $deployment = Get-Content -LiteralPath 'docs/deployment-steps.md' -Raw
 foreach ($item in $required) {
   if (-not $deployment.Contains($item)) { throw "Deployment guide is missing: $item" }
@@ -601,12 +603,12 @@ Expected: prints `CONFIG PARSE OK`.
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe -c "from importlib.metadata import version; assert version('pr-agent') == '0.41.0'; print('CLI 0.41.0 OK')"
+.\.venv\Scripts\python.exe -c "from importlib.metadata import version; assert version('pr-agent') == '0.39.0'; print('CLI 0.39.0 OK')"
 $workflow = Get-Content -LiteralPath '.github/workflows/pr-agent.yml' -Raw
 if (-not $workflow.Contains('the-pr-agent/pr-agent@570f67ed5fc8db5be74c18df070bc20079b64b0d')) { throw 'Action is not pinned to the approved commit' }
 ```
 
-Expected: prints `CLI 0.41.0 OK` and exits `0`.
+Expected: prints `CLI 0.39.0 OK` and exits `0`.
 
 - [ ] **Step 3: Scan tracked and untracked project files for credential-like values**
 
@@ -638,273 +640,128 @@ Expected:
 - Worktree is empty.
 - Branch contains small commits for ignore rules, shared config, workflow, and documentation.
 
-### Task 8: Configure credentials without exposing them
-
-**Files:**
-- GitHub repository setting: `DEEPSEEK_API_KEY`
-- GitHub user setting: Fine-grained PAT
-- No repository file changes
-
-- [ ] **Step 1: Add the DeepSeek repository secret manually**
-
-In GitHub, open:
-
-```text
-susz347/CodeSec-Agent
-→ Settings
-→ Secrets and variables
-→ Actions
-→ New repository secret
-```
-
-Create `DEEPSEEK_API_KEY` using the existing DeepSeek Key. Do not paste its value into chat, a command transcript, or a repository file.
-
-- [ ] **Step 2: Create the repository-scoped Fine-grained PAT manually**
-
-In GitHub, open:
-
-```text
-Settings
-→ Developer settings
-→ Personal access tokens
-→ Fine-grained tokens
-→ Generate new token
-```
-
-Set:
-
-```text
-Expiration: 30 days
-Repository access: Only select repositories → susz347/CodeSec-Agent
-Contents: Read-only
-Pull requests: Read and write
-Issues: Read and write
-```
-
-Copy the token once into a password manager. Do not put it in Git credential configuration or any project file.
-
-- [ ] **Step 3: Confirm only the names and scopes**
-
-Expected confirmation from the user:
-
-```text
-DEEPSEEK_API_KEY 已添加；Fine-grained PAT 已创建并仅授权 CodeSec-Agent。
-```
-
-No secret value is requested or displayed.
-
-### Task 9: Publish the setup branch and create the test PR
+### Task 8: Publish and merge the enabling PR before adding credentials
 
 **Files:**
 - GitHub branch: `codex/pr-agent-phase1-2`
-- GitHub pull request targeting `main`
+- Enabling pull request targeting `main`
+- No credential changes
 
-- [ ] **Step 1: Push the implementation branch**
+- [ ] **Step 1: Push the implementation branch and create the enabling PR**
 
-Run:
+Push `codex/pr-agent-phase1-2`, then create a PR targeting `main`. This first PR installs the workflow and trusted configuration; it is not the end-to-end validation PR. Do not attempt to make the Action read `.pr_agent.toml` from the PR head.
 
-```powershell
-git push -u origin codex/pr-agent-phase1-2
-```
+- [ ] **Step 2: Complete static and human review**
 
-Expected: push exits `0` and sets the upstream branch.
+Verify the branch diff, configuration parsing, SHA pin, permissions, credential scan, and documentation. The Action may not run because the workflow is not yet present on the default branch; that is expected and is not a failed deployment test.
 
-- [ ] **Step 2: Create the setup PR and capture its URL**
+- [ ] **Step 3: Request explicit user approval and merge**
 
-Run:
+Report the exact diff and static verification. Do not merge until the user explicitly approves. After approval, merge the enabling PR so `.github/workflows/pr-agent.yml` and `.pr_agent.toml` become trusted default-branch content.
 
-```powershell
-$prUrl = gh pr create `
-  --repo susz347/CodeSec-Agent `
-  --base main `
-  --head codex/pr-agent-phase1-2 `
-  --title 'ci: deploy PR-Agent with DeepSeek' `
-  --body 'Implements deployment Phase 1 and Phase 2: pinned PR-Agent GitHub Action, shared DeepSeek configuration, local CLI setup, least-privilege credentials, and updated deployment documentation.'
-if (-not $prUrl.StartsWith('https://github.com/')) { throw 'GitHub CLI did not return a PR URL' }
-$prUrl
-```
-
-Expected: prints the new PR URL.
-
-- [ ] **Step 3: Wait for the GitHub Action result**
-
-Run:
-
-```powershell
-$prUrl = gh pr view codex/pr-agent-phase1-2 --repo susz347/CodeSec-Agent --json url --jq '.url'
-gh pr checks $prUrl --watch
-```
-
-Expected: `PR Agent Security Review` completes successfully. If it fails, inspect logs without printing any secret value:
-
-```powershell
-gh run list --repo susz347/CodeSec-Agent --workflow 'PR Agent Security Review' --limit 3
-```
-
-### Task 10: Verify Phase 1 in GitHub
+### Task 9: Configure credentials after the enabling PR is merged
 
 **Files:**
-- Read-only verification of the setup PR and workflow run
-
-- [ ] **Step 1: Verify the review comment**
-
-Run:
-
-```powershell
-$prUrl = gh pr view codex/pr-agent-phase1-2 --repo susz347/CodeSec-Agent --json url --jq '.url'
-gh pr view $prUrl --repo susz347/CodeSec-Agent --comments
-```
-
-Expected: output includes a PR-Agent review comment generated by the GitHub Actions bot.
-
-- [ ] **Step 2: Verify workflow permissions and secret handling from logs**
-
-Run:
-
-```powershell
-$prUrl = gh pr view codex/pr-agent-phase1-2 --repo susz347/CodeSec-Agent --json url --jq '.url'
-$runId = gh run list --repo susz347/CodeSec-Agent --workflow 'PR Agent Security Review' --limit 1 --json databaseId --jq '.[0].databaseId'
-gh run view $runId --repo susz347/CodeSec-Agent --log
-```
-
-Expected:
-
-- Run is successful.
-- DeepSeek request succeeds.
-- Logs do not contain the literal DeepSeek Key.
-
-Do not copy full logs into public comments.
-
-### Task 11: Verify Phase 2 with the local CLI
-
-**Files:**
-- Process-local environment variables only
+- GitHub Repository Secret: `DEEPSEEK_API_KEY`
+- GitHub user setting: short-lived Fine-grained PAT
 - No repository file changes
 
-- [ ] **Step 1: Let the user inject credentials in their own PowerShell terminal**
+- [ ] **Step 1: Confirm the external-data boundary**
 
-Run locally without sharing the values:
+PR diff, title, description, comments, and related code context are sent to DeepSeek during review. Before adding a Secret for a private or commercial repository, confirm organizational data-processing and third-party-model policy. The first validation PR must contain no secrets, customer data, or production data.
+
+- [ ] **Step 2: Add the DeepSeek Repository Secret manually**
+
+Create `DEEPSEEK_API_KEY` under repository **Settings → Secrets and variables → Actions**. Do not paste its value into chat, command transcripts, logs, or repository files.
+
+- [ ] **Step 3: Create the repository-scoped Fine-grained PAT manually**
+
+Use a 30-day-or-shorter Fine-grained PAT restricted to `susz347/CodeSec-Agent`, with `Contents: Read-only` and `Pull requests: Read and write`. Store it in a password manager and do not put it in Git credential configuration or any project file.
+
+- [ ] **Step 4: Confirm names and scopes only**
+
+Expected confirmation contains only that `DEEPSEEK_API_KEY` exists and the PAT is repository-scoped with the required permissions. Never request or display either secret value.
+
+### Task 10: Create a short-lived validation PR from updated main
+
+**Files:**
+- Temporary same-repository validation branch
+- One non-sensitive probe change that will not be merged
+
+- [ ] **Step 1: Start from the updated default branch**
+
+Update local `main` after the enabling PR merge, then create a uniquely named short-lived validation branch. Confirm the branch contains the merged workflow and `.pr_agent.toml` before adding a probe.
+
+- [ ] **Step 2: Add a non-sensitive probe and open the validation PR**
+
+Use a small disposable documentation or test fixture change containing no secrets, customer data, or production data. Open a same-repository PR targeting `main`; do not use a Fork. Record the validation PR URL for both Action and local CLI checks.
+
+- [ ] **Step 3: Confirm trusted configuration origin**
+
+The validation branch originates from the updated `main`. The Action and formal CLI validation use the reviewed `.pr_agent.toml` on the default branch, not a PR-head override. Do not use `--config-branch codex/pr-agent-phase1-2` for this validation.
+
+### Task 11: Verify the Action and local CLI on the same validation PR
+
+**Files:**
+- Read-only workflow/log inspection
+- Process-local environment variables only
+
+- [ ] **Step 1: Verify Phase 1 in GitHub**
+
+In the validation PR **Checks** or repository **Actions** page, confirm `PR Agent Security Review` succeeds and publishes a review. Push one additional disposable probe commit and confirm `synchronize` runs only `/review`. Verify logs do not expose credentials; do not copy full logs into public comments.
+
+- [ ] **Step 2: Inject credentials only in the user's PowerShell**
+
+Use `Read-Host -AsSecureString` to populate process-local `DEEPSEEK_API_KEY` and `GITHUB__USER_TOKEN`. Do not send values to chat or write them to files.
+
+- [ ] **Step 3: Verify Phase 2 using trusted default-branch configuration**
+
+Run against the same validation PR:
 
 ```powershell
-$deepSeekSecret = Read-Host 'DeepSeek API Key' -AsSecureString
-$githubSecret = Read-Host 'GitHub Fine-grained PAT' -AsSecureString
-$env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $deepSeekSecret).Password
-$env:GITHUB__USER_TOKEN = [System.Net.NetworkCredential]::new('', $githubSecret).Password
+.\.venv\Scripts\pr-agent.exe --pr_url $prUrl --config-branch main review
 ```
 
-Expected: no secret is echoed.
-
-- [ ] **Step 2: Execute local review against the setup PR**
-
-In the same terminal where the credentials were injected, resolve the PR URL again and run:
-
-```powershell
-$prUrl = gh pr view codex/pr-agent-phase1-2 --repo susz347/CodeSec-Agent --json url --jq '.url'
-.\.venv\Scripts\pr-agent.exe --pr_url $prUrl review
-```
-
-Expected: command exits `0` and reports that review output was published to GitHub.
-
-- [ ] **Step 3: Confirm the second review comment**
-
-Run:
-
-```powershell
-$prUrl = gh pr view codex/pr-agent-phase1-2 --repo susz347/CodeSec-Agent --json url --jq '.url'
-gh pr view $prUrl --repo susz347/CodeSec-Agent --comments
-```
-
-Expected: PR conversation contains the locally initiated review output in addition to the Action-initiated run.
+Expected: the CLI exits `0`, publishes a second review, and uses `.pr_agent.toml` from `main`. Before the enabling PR merge, `--config-branch codex/pr-agent-phase1-2` may be used only for an explicitly accepted maintainer precheck; it is forbidden for the Action and does not count as formal validation.
 
 - [ ] **Step 4: Clear credentials immediately**
 
-Run in the same terminal:
+Remove both environment variables, clear the temporary secure-string variables, and assert that `Env:DEEPSEEK_API_KEY` and `Env:GITHUB__USER_TOKEN` no longer exist.
 
-```powershell
-Remove-Item Env:DEEPSEEK_API_KEY -ErrorAction SilentlyContinue
-Remove-Item Env:GITHUB__USER_TOKEN -ErrorAction SilentlyContinue
-$deepSeekSecret = $null
-$githubSecret = $null
-[GC]::Collect()
-```
-
-Expected: both environment variables are absent:
-
-```powershell
-if (Test-Path Env:DEEPSEEK_API_KEY) { throw 'DeepSeek key remains in the environment' }
-if (Test-Path Env:GITHUB__USER_TOKEN) { throw 'GitHub token remains in the environment' }
-```
-
-### Task 12: Final verification and merge checkpoint
+### Task 12: Close the validation PR and remove temporary state
 
 **Files:**
-- Verify all implementation files and commits
-- External action: merge only after explicit user confirmation
+- Validation PR and branch
+- Temporary probe files and local environment only
 
-- [ ] **Step 1: Re-run the complete local verification**
+- [ ] **Step 1: Capture final evidence**
 
-Run:
+Record the enabling PR merge, validation PR URL, successful Action result, successful local CLI result, installed `pr-agent==0.39.0`, trusted `main` config branch, credential cleanup, and absence of literal credentials in logs. Do not include secret values or full logs.
 
-```powershell
-$prUrl = gh pr view codex/pr-agent-phase1-2 --repo susz347/CodeSec-Agent --json url --jq '.url'
-.\.venv\Scripts\python.exe -c "import tomllib, yaml; from pathlib import Path; assert tomllib.loads(Path('.pr_agent.toml').read_text(encoding='utf-8'))['config']['model']=='deepseek/deepseek-v4-flash'; yaml.safe_load(Path('.github/workflows/pr-agent.yml').read_text(encoding='utf-8')); print('CONFIG OK')"
-.\.venv\Scripts\python.exe -c "from importlib.metadata import version; assert version('pr-agent') == '0.41.0'; print('CLI OK')"
-git diff --check
-git status --short
-gh pr checks $prUrl
-```
+- [ ] **Step 2: Close without merging the validation PR**
 
-Expected:
+The validation PR contains disposable probes and must not be merged. Close it after both paths pass.
 
-- Prints `CONFIG OK` and `CLI OK`.
-- Git checks pass and worktree is empty.
-- GitHub checks are successful.
+- [ ] **Step 3: Delete validation branches and probes**
 
-- [ ] **Step 2: Review the exact branch diff**
+Delete the remote and local validation branches. Remove all temporary probe files and generated logs. Confirm no probe commit or file entered `main`.
 
-Run:
+- [ ] **Step 4: Verify final cleanliness**
 
-```powershell
-git diff --stat main...HEAD
-git diff --name-status main...HEAD
-```
-
-Expected changes are limited to:
-
-```text
-.gitignore
-.pr_agent.toml
-.github/workflows/pr-agent.yml
-README.md
-docs/deployment-steps.md
-docs/superpowers/specs/2026-08-06-pr-agent-phase1-2-design.md
-docs/superpowers/plans/2026-08-06-pr-agent-phase1-2.md
-```
-
-- [ ] **Step 3: Request explicit merge approval**
-
-Report the Action result, local CLI result, PR URL, commit list, and credential cleanup status. Do not merge until the user explicitly approves.
-
-- [ ] **Step 4: Merge after approval**
-
-Run only after approval:
-
-```powershell
-gh pr merge $prUrl --repo susz347/CodeSec-Agent --squash --delete-branch
-```
-
-Expected: PR is merged into `main`, completing the requirement that Phase 1 configuration is present on the default branch.
+Confirm the normal worktree is clean, the temporary environment variables are absent, and the short-lived PAT is revoked if no longer needed. Remove the implementation worktree/merged branch only after the enabling PR has merged and cleanup is safe.
 
 ## Completion evidence
 
 Do not claim Phase 1 or Phase 2 complete without all of the following fresh evidence:
 
 - Local TOML and YAML parse commands exit `0`.
-- Installed PR-Agent version is exactly `0.41.0`.
+- Installed local PR-Agent version is exactly `0.39.0`; the Action remains pinned to the approved v0.41.0 SHA.
 - Credential-pattern scan finds no repository secret.
-- GitHub Action check succeeds on the setup PR.
+- User explicitly approved and merged the enabling PR before credentials and end-to-end validation were used.
+- The short-lived validation PR was created from the updated `main`, and formal Action/CLI runs used trusted default-branch configuration.
+- GitHub Action check succeeds on the validation PR.
 - Action-generated review comment exists.
-- Local CLI command exits `0` against the same PR.
+- Local CLI command with `--config-branch main` exits `0` against the same validation PR.
 - Local-CLI-generated review output exists.
 - `DEEPSEEK_API_KEY` and `GITHUB__USER_TOKEN` are removed from the local process environment.
-- User explicitly approves the final merge.
+- The validation PR is closed without merging; remote/local validation branches and temporary probes are deleted.
