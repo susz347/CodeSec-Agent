@@ -10,6 +10,8 @@
 
 ---
 
+> **实施勘误（2026-08-06）：** 后续验证确认 PyPI 可安装的本地版本固定为 `pr-agent==0.39.0`，GitHub Action 仍固定到 `v0.41.0` 的完整 SHA；两个发布渠道暂时不同。最终 workflow 还移除了 `issues: write`，增加同仓库/非 Bot 限制与 15 分钟超时，并让 `synchronize` 仅执行 `/review`。最终共享 TOML 禁用 fallback 并加入提示注入防护。下方任务记录保留为原批准计划，实际操作以仓库配置和 `docs/deployment-steps.md` 为准。
+
 ## Scope and maintainability guardrails
 
 - `.pr_agent.toml` is the only source of truth for the model and review instructions.

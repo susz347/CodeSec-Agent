@@ -1,6 +1,6 @@
 # CodeSec-Agent
 
-CodeSec-Agent 是一个基于 [PR-Agent](https://github.com/qodo-ai/pr-agent) 的代码安全审计与修复建议系统。项目将 Pull Request 代码审查、静态应用安全测试、漏洞知识库和大模型推理能力结合起来，生成结构化的安全审计报告。
+CodeSec-Agent 是一个基于 [PR-Agent](https://github.com/The-PR-Agent/pr-agent) 的代码安全审计与修复建议系统。项目将 Pull Request 代码审查、静态应用安全测试、漏洞知识库和大模型推理能力结合起来，生成结构化的安全审计报告。
 
 项目重点不是通用代码点评，而是面向安全场景的代码审查流程：先由静态扫描工具提供可复现的技术证据，再由 Agent 层完成风险解释、影响分析、修复建议和报告生成。
 
@@ -74,6 +74,11 @@ CodeSec-Agent
 
 ```text
 CodeSec-Agent/
+  .github/
+    workflows/
+      pr-agent.yml
+  .gitignore
+  .pr_agent.toml
   README.md
   docs/
     beginner-guide.md
@@ -112,105 +117,18 @@ report/
 
 ## 快速开始
 
-### 1. 使用 GitHub Actions 运行 PR-Agent
+项目按阶段实施：
 
-在目标仓库中创建 `.github/workflows/pr-agent.yml`：
+1. 使用 GitHub Actions 运行 PR-Agent。
+2. 在 Windows 本地运行 PR-Agent CLI。
+3. 接入 Semgrep、Bandit 和 npm audit。
+4. 解析扫描结果并生成安全审计报告。
 
-```yaml
-name: PR Agent
-
-on:
-  pull_request:
-    types: [opened, reopened, ready_for_review, synchronize]
-  issue_comment:
-
-jobs:
-  pr_agent_job:
-    if: ${{ github.event.sender.type != 'Bot' }}
-    runs-on: ubuntu-latest
-    permissions:
-      issues: write
-      pull-requests: write
-      contents: write
-      checks: write
-    steps:
-      - name: PR Agent action step
-        uses: qodo-ai/pr-agent@main
-        env:
-          OPENAI_KEY: ${{ secrets.OPENAI_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-在 GitHub 仓库中添加模型 API Key：
-
-```text
-Settings -> Secrets and variables -> Actions -> New repository secret
-```
-
-需要添加：
-
-```text
-OPENAI_KEY = your_api_key
-```
-
-### 2. 运行静态安全扫描
-
-Semgrep：
-
-```bash
-semgrep scan --config auto --json -o semgrep-result.json .
-```
-
-Bandit，适用于 Python 项目：
-
-```bash
-bandit -r . -f json -o bandit-result.json
-```
-
-npm audit，适用于 Node.js 项目：
-
-```bash
-npm audit --json > npm-audit-result.json
-```
-
-### 3. 生成安全审计报告
-
-第一阶段目标是将扫描器 JSON 输出转换为 Markdown 报告：
-
-```text
-semgrep-result.json / bandit-result.json
-  -> 结果解析
-  -> 发现项归一化
-  -> 安全分析 Prompt
-  -> Markdown 审计报告
-```
+当前已实施前两个阶段。DeepSeek 接入、最小权限、安装、验证和故障排查统一维护在 [部署与运行步骤](docs/deployment-steps.md) 中；README 不保存容易过期的 workflow、TOML 或命令副本。
 
 ## 开发路线
 
-### Phase 1: PR 审查基线
-
-- 配置 PR-Agent GitHub Action。
-- 验证 Pull Request 自动审查评论。
-- 记录最小可运行配置。
-
-### Phase 2: 静态扫描接入
-
-- 本地运行 Semgrep 和 Bandit。
-- 将扫描结果导出为 JSON。
-- 将不同扫描器结果归一化为统一结构。
-
-### Phase 3: 安全分析 Agent
-
-- 设计安全审查 Prompt。
-- 结合扫描发现和代码片段进行分析。
-- 生成漏洞解释、影响分析和修复建议。
-
-### Phase 4: 报告生成
-
-- 生成 Markdown 安全审计报告。
-- 增加风险汇总和发现项表格。
-- 增加 CWE/OWASP 参考依据。
-- 扩展 Word/PDF 报告导出。
+产品研发阶段、任务和交付物统一维护在 [项目路线图](docs/roadmap.md) 中。部署指南中的 Phase 1/2 专指本轮两个 PR-Agent 运行入口，不用于替代产品路线图的阶段编号。
 
 ## 设计原则
 
@@ -221,7 +139,7 @@ semgrep-result.json / bandit-result.json
 
 ## 当前状态
 
-当前仓库处于文档设计和工作流初始化阶段。下一阶段目标是完成最小可运行闭环：
+当前仓库已提交 DeepSeek PR-Agent 的共享配置与 GitHub Actions workflow，本地 CLI 安装路径也已验证。完成 GitHub Secret、短期 PAT 和同一测试 PR 的端到端验证后，再推进静态扫描与报告能力：
 
 ```text
 PR-Agent 审查
