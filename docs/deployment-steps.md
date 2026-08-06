@@ -1,13 +1,13 @@
 # 部署与运行步骤
 
-本文是 CodeSec-Agent 的唯一详细部署入口。本项目的四个部署阶段为：
+本文是 CodeSec-Agent 的唯一详细部署入口。本项目可概括为四个部署里程碑：
 
-1. **Phase 1：GitHub Actions 自动运行 PR-Agent**（本轮范围，配置已实施，等待真实 PR 验证）。
-2. **Phase 2：Windows 本地运行 PR-Agent CLI**（本轮范围，安装已验证，等待凭据和真实 PR 验证）。
-3. **Phase 3：接入 Semgrep、Bandit 和 npm audit**（待开发）。
-4. **Phase 4：归一化 finding、执行 Agent 分析并生成 Markdown 报告**（待开发）。
+1. **Phase 1：GitHub Actions PR-Agent**（本轮范围，配置已实施，等待真实 PR 验证）。
+2. **Phase 2：本地 PR-Agent CLI**（本轮范围，Windows 安装已验证，等待凭据和真实 PR 验证）。
+3. **Phase 3：静态安全扫描与结果归一化**（待开发）。
+4. **Phase 4：Agent 分析、报告与自动化**（待开发）。
 
-本文只给出 Phase 1 和 Phase 2 的可执行步骤，后两阶段不提前堆放未经验证的命令。这里的编号表示部署顺序；产品研发任务与交付物另见 [项目路线图](roadmap.md)，不要混用两套阶段编号。
+本文只给出 Phase 1 和 Phase 2 的可执行步骤，后两个里程碑不提前堆放未经验证的命令。完整研发阶段、任务与交付物统一见 [项目路线图](roadmap.md)。
 
 ## 版本与安全边界
 
@@ -17,7 +17,7 @@
 - 共享 TOML 通过 `fallback_models = []` 禁用备用模型，避免 DeepSeek 失败时把代码发送给其他提供商；审查指令同时要求把 PR 描述、代码、注释和字符串视为不可信数据，以降低提示注入风险，但这不是绝对隔离，不能替代人工复核。
 - 密钥只进入 GitHub Repository Secret 或用户自己的当前 PowerShell 进程，不写入文件、Git 历史或聊天。
 
-## Phase 1：GitHub Actions 自动审查
+## Phase 1：GitHub Actions PR-Agent
 
 ### 1. 先合并启用 PR
 
@@ -50,16 +50,52 @@ Settings → Secrets and variables → Actions → New repository secret
 
 ### 4. 创建短生命周期验证 PR
 
-1. 确认启用 PR 已经用户批准并合并，且 `.pr_agent.toml`、workflow 和 Secret 均已在目标仓库就绪。
-2. 从更新后的 `main` 创建同仓库短生命周期分支，只提交一个不含敏感数据、无需合并的临时探针变更，然后发起验证 PR；不要用 Fork。
-3. 在验证 PR 的 **Checks** 或仓库 **Actions** 页面确认 `PR Agent Security Review` 成功。
-4. 确认 PR 出现自动 review 评论，且没有自动 describe 或 improve 评论。
-5. 再向该分支推送一个小提交，确认 `synchronize` 后只重新执行 review。
-6. 检查日志没有输出 DeepSeek Key 或其他凭据。
+确认启用 PR 已经用户批准并合并，且 `.pr_agent.toml`、workflow 和 Secret 均已在目标仓库就绪。以下命令必须从仓库根目录运行，并要求 [GitHub CLI](https://cli.github.com/) 已安装且完成认证。
 
-不要把启用 PR 当作上述验证 PR，也不要让验证 PR 承担长期功能变更。
+验证探针只包含说明文字，不得包含密钥、客户数据、生产数据、真实漏洞或漏洞利用步骤。固定验证分支和探针文件会在验证后随未合并分支一起删除，绝不合并到 `main`。
 
-## Phase 2：Windows 本地 CLI
+```powershell
+$ErrorActionPreference = 'Stop'
+$repoRoot = git rev-parse --show-toplevel
+if ($LASTEXITCODE -ne 0) { throw '当前目录不是 Git 仓库' }
+if ((Resolve-Path '.').Path -ne (Resolve-Path $repoRoot).Path) { throw '请先切换到仓库根目录' }
+Get-Command gh -ErrorAction Stop | Out-Null
+gh auth status
+if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI 尚未认证' }
+git switch main
+if ($LASTEXITCODE -ne 0) { throw '切换 main 失败' }
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw '更新 main 失败' }
+git switch -c codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '创建验证分支失败；请检查同名分支是否已存在' }
+$probePath = 'docs/pr-agent-validation-probe.md'
+if (Test-Path -LiteralPath $probePath) { throw '验证探针文件已存在，停止以避免覆盖' }
+Set-Content -LiteralPath $probePath -Encoding UTF8 -Value @(
+  '# PR-Agent validation probe',
+  '',
+  '这是不含敏感数据的临时验证探针，验证完成后关闭 PR 并删除分支，永不合并。'
+)
+git add -- $probePath
+if ($LASTEXITCODE -ne 0) { throw '暂存首个探针失败' }
+git commit -m 'test: add temporary PR-Agent validation probe'
+if ($LASTEXITCODE -ne 0) { throw '提交首个探针失败' }
+git push -u origin codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '推送验证分支失败' }
+$prUrl = gh pr create --repo susz347/CodeSec-Agent --base main --head codex/pr-agent-validation --title 'test: validate PR-Agent deployment' --body 'Temporary non-sensitive probe. Do not merge; close and delete after Action and CLI verification.'
+if ($LASTEXITCODE -ne 0 -or -not $prUrl.StartsWith('https://github.com/')) { throw '创建验证 PR 失败' }
+Add-Content -LiteralPath $probePath -Encoding UTF8 -Value '第二次无敏感内容更新：仅用于验证 synchronize 只执行 /review。'
+git add -- $probePath
+if ($LASTEXITCODE -ne 0) { throw '暂存第二个探针失败' }
+git commit -m 'test: update temporary PR-Agent validation probe'
+if ($LASTEXITCODE -ne 0) { throw '提交第二个探针失败' }
+git push
+if ($LASTEXITCODE -ne 0) { throw '推送 synchronize 探针失败' }
+$prUrl
+```
+
+在验证 PR 的 **Checks** 或仓库 **Actions** 页面确认首次运行和 `synchronize` 更新都成功；后者应只执行 `/review`，不能自动 describe 或 improve。检查 PR 评论和日志，确认没有输出 DeepSeek Key 或其他凭据。不要把启用 PR 当作验证 PR，也不要让验证 PR 承担长期功能变更。
+
+## Phase 2：本地 PR-Agent CLI
 
 ### 1. 准备 Python 3.12 虚拟环境
 

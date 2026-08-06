@@ -1,111 +1,81 @@
 # 开发路线图
 
-本文描述 CodeSec-Agent 从最小可运行闭环到完整安全审计工作流的阶段规划。
+本文描述 CodeSec-Agent 从 PR-Agent 最小闭环到完整安全审计工作流的四个阶段。阶段名称与 README、部署指南和新手指南保持一致。
 
-## Phase 1: PR 审查基线
+## Phase 1: GitHub Actions PR-Agent
 
-目标：跑通原始 PR-Agent，建立 Pull Request 审查入口。
+目标：在 GitHub Actions 中跑通自动 PR review，并建立可信默认分支配置。
 
 主要任务：
 
-- 准备 GitHub 测试仓库。
-- 添加 PR-Agent GitHub Action。
-- 配置模型 API Key。
-- 创建测试 Pull Request。
-- 验证 PR-Agent 自动生成审查评论。
+- 添加固定 SHA 的 PR-Agent workflow。
+- 配置 DeepSeek Repository Secret。
+- 只处理同仓库、非 Bot PR，并使用最小权限。
+- 从更新后的 `main` 创建短生命周期验证 PR。
+- 验证首次 review 与 synchronize 更新行为。
 
 交付物：
 
 - 可运行的 PR-Agent GitHub Action。
-- 一次成功的 PR 审查记录。
-- 最小配置说明。
+- 一次成功的 Action review 记录。
+- 无凭据泄露的日志与最小权限说明。
 
-## Phase 2: 静态安全扫描
+## Phase 2: 本地 PR-Agent CLI
 
-目标：接入传统安全扫描工具，获得可复现的安全发现。
+目标：在 Windows 本地使用与 GitHub Actions 相同的可信配置，对同一个短生命周期验证 PR 执行 review。
+
+主要任务：
+
+- 使用 Python 3.12 虚拟环境安装固定版本的本地 CLI。
+- 创建仅限目标仓库和必要权限的短期 Fine-grained PAT。
+- 只在用户自己的 PowerShell 进程中注入临时凭据。
+- 显式读取默认分支 `main` 中已审核的共享配置。
+- 验证评论后清理凭据、验证 PR、分支和临时探针。
+
+交付物：
+
+- 一次成功的本地 CLI review 记录。
+- 最小权限与凭据清理记录。
+- 不含临时探针垃圾的干净仓库状态。
+
+## Phase 3: 静态安全扫描与结果归一化
+
+目标：接入传统安全扫描工具，获得可复现的安全发现，并转换为统一 finding 数据结构。
 
 主要任务：
 
 - 使用 Semgrep 扫描测试仓库。
 - 对 Python 项目使用 Bandit。
 - 对 Node.js 项目使用 npm audit。
-- 将扫描结果保存为 JSON。
-- 初步解析扫描器输出。
-
-交付物：
-
-- `semgrep-result.json`
-- `bandit-result.json` 或 `npm-audit-result.json`
-- 初始扫描结果摘要。
-
-## Phase 3: 结果归一化
-
-目标：将不同扫描器输出转换为统一 finding 数据结构。
-
-主要任务：
-
+- 保存并解析各扫描器的 JSON 输出。
 - 设计通用 finding 字段。
-- 解析 Semgrep 结果。
-- 解析 Bandit 结果。
-- 解析 npm audit 结果。
-- 统一风险等级、文件位置和规则信息。
+- 统一风险等级、文件位置、规则 ID 和证据信息。
 
 交付物：
 
+- Semgrep、Bandit 或 npm audit 的 JSON 结果。
 - 扫描结果解析模块。
-- 统一 finding 数据结构说明。
-- 示例归一化输出。
+- 统一 finding 数据结构说明与示例输出。
 
-## Phase 4: Agent 安全分析
+## Phase 4: Agent 分析、报告与自动化
 
-目标：将原始扫描结果转换为可读的安全审查结论。
+目标：把统一 finding 和代码上下文转换为可读的安全结论、稳定报告，并接入自动化工作流。
 
 主要任务：
 
-- 设计安全审查 Prompt。
-- 将 finding、代码片段和安全参考传入分析流程。
-- 生成漏洞解释、影响分析和修复建议。
+- 设计和迭代安全审查 Prompt。
+- 结合 finding、代码片段和安全参考生成漏洞解释。
 - 标注确认问题、可疑问题和可能误报。
+- 生成 Markdown 报告、风险汇总和发现项明细。
+- 加入修复建议、CWE/OWASP 参考和完整示例报告。
+- 添加安全扫描 GitHub Action，保存扫描结果与报告产物。
+- 在 PR 评论中输出摘要，并探索按风险阈值提示或阻断合并。
 
 交付物：
 
-- `prompts/security_review.md`
-- 示例 Agent 分析输出。
-- 改进版 Markdown 报告。
-
-## Phase 5: 报告生成
-
-目标：形成稳定的审计报告输出能力。
-
-主要任务：
-
-- 生成 Markdown 报告。
-- 增加风险汇总。
-- 增加发现项明细表。
-- 增加修复建议和参考链接。
-- 保存完整示例报告。
-
-交付物：
-
-- Markdown 报告生成模块。
-- 示例安全审计报告。
-- 报告字段说明。
-
-## Phase 6: 自动化与集成
-
-目标：将安全扫描和报告生成接入 CI 或 PR 工作流。
-
-主要任务：
-
-- 添加安全扫描 GitHub Action。
-- 保存扫描结果和报告产物。
-- 在 PR 评论中输出报告摘要。
-- 支持按风险阈值提示或阻断合并。
-
-交付物：
-
-- `.github/workflows/security-scan.yml`
-- PR 报告摘要示例。
+- 安全分析输出与改进后的 Prompt。
+- Markdown 报告生成模块、示例报告和字段说明。
+- `.github/workflows/security-scan.yml` 与 PR 报告摘要示例。
 - 自动化运行说明。
 
 ## 后续增强

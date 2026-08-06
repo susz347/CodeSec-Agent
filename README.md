@@ -117,18 +117,18 @@ report/
 
 ## 快速开始
 
-项目按阶段实施：
+项目按统一阶段实施：
 
-1. 使用 GitHub Actions 运行 PR-Agent。
-2. 在 Windows 本地运行 PR-Agent CLI。
-3. 接入 Semgrep、Bandit 和 npm audit。
-4. 解析扫描结果并生成安全审计报告。
+1. **Phase 1：GitHub Actions PR-Agent**。
+2. **Phase 2：本地 PR-Agent CLI**。
+3. **Phase 3：静态安全扫描与结果归一化**。
+4. **Phase 4：Agent 分析、报告与自动化**。
 
 当前已实施前两个阶段。DeepSeek 接入、最小权限、安装、验证和故障排查统一维护在 [部署与运行步骤](docs/deployment-steps.md) 中；README 不保存容易过期的 workflow、TOML 或命令副本。
 
 ## 开发路线
 
-产品研发阶段、任务和交付物统一维护在 [项目路线图](docs/roadmap.md) 中。部署指南中的 Phase 1/2 专指本轮两个 PR-Agent 运行入口，不用于替代产品路线图的阶段编号。
+产品研发阶段、任务和交付物统一维护在 [项目路线图](docs/roadmap.md) 中；其中 Phase 1/2 与部署指南一致，分别对应 GitHub Action 和本地 CLI。
 
 ## 设计原则
 
