@@ -144,10 +144,24 @@ $githubSecret = $null
 
 Phase 1 和 Phase 2 都验证完成后：
 
-1. 关闭验证 PR，不合并临时探针。
-2. 删除远端和本地验证分支。
-3. 删除任何临时探针文件、日志和测试环境变量。
-4. 确认 `git status --short` 为空，并撤销不再需要的 PAT。
+1. 关闭验证 PR，不合并临时探针；在 GitHub UI 中同时删除远端验证分支，或使用下方 `gh pr close`。
+2. 切回并快进更新 `main`，再用安全的 `git branch -d` 删除下方明确命名的本地验证分支。
+3. 删除任何临时探针文件、日志和测试环境变量，并撤销不再需要的 PAT。
+
+以下示例固定使用本文的验证分支名，不要改成通配符或批量删除命令：
+
+```powershell
+git switch main
+git pull --ff-only
+$validationPrNumber = Read-Host '验证 PR 编号'
+$validationBranch = 'codex/pr-agent-validation-20260806'
+gh pr close $validationPrNumber --repo susz347/CodeSec-Agent --delete-branch
+git branch -d $validationBranch
+git branch --list
+git status --short
+```
+
+禁止使用 `git branch -D`。如果 `-d` 因探针提交未合并而拒绝删除，立即停止并报告仍保留的明确分支名，不要强制删除。若已通过 GitHub UI 关闭 PR 并删除远端分支，则跳过 `gh pr close`，其余本地检查不变。
 
 ## 故障排查
 

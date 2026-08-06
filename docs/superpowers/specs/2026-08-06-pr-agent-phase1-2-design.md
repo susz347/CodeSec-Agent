@@ -1,6 +1,6 @@
 # PR-Agent Phase 1/2 部署设计
 
-> **实施勘误（2026-08-06）：** 本地 PyPI 包固定为 `pr-agent==0.39.0`，GitHub Action 固定到 `v0.41.0` 的完整 SHA；两个发布渠道暂时不同。最终 workflow 移除了 `issues: write`，增加同仓库/非 Bot 限制与 15 分钟超时，并让 `synchronize` 仅执行 `/review`。最终共享 TOML 禁用 fallback，并加入用于降低提示注入风险（非绝对隔离）的审查指令。启用 PR 先经用户批准合并，端到端验证再从更新后的 `main` 创建短生命周期 PR；详细操作以 `docs/deployment-steps.md` 为准。
+> **实施勘误（2026-08-06）：** 本地 PyPI 包固定为 `pr-agent==0.39.0`，GitHub Action 固定到 `v0.41.0` 的完整 SHA；两个发布渠道暂时不同。最终 workflow 使用同仓库/非 Bot 限制与 15 分钟超时，并让 `synchronize` 仅执行 `/review`。最终共享 TOML 禁用 fallback，并加入用于降低提示注入风险（非绝对隔离）的审查指令。启用 PR 先经用户批准合并，端到端验证再从更新后的 `main` 创建短生命周期 PR；详细操作以 `docs/deployment-steps.md` 为准。
 
 ## 1. 目标
 
