@@ -6,7 +6,7 @@
 
 代码审查通常关注可读性、可维护性和逻辑正确性。安全审查还需要识别危险函数、输入校验缺失、依赖漏洞、敏感信息泄露等风险。
 
-CodeSec-Agent 的目标是把代码审查、静态扫描和大模型分析串成一条流程：
+CodeSec-Agent 的长期目标是把代码审查、静态扫描和大模型分析串成一条流程：
 
 ```text
 读取 PR 或仓库代码
@@ -32,7 +32,7 @@ PR-Agent 是开源 AI code review agent。它可以接入 GitHub Pull Request，
 
 静态扫描是不运行程序、直接分析源代码或依赖清单的安全检查方式。它适合发现已知风险模式。
 
-本项目计划接入：
+本项目在后续路线图阶段计划接入：
 
 - Semgrep：通用静态分析和安全规则扫描工具。
 - Bandit：Python 代码安全扫描工具。
@@ -46,39 +46,44 @@ Agent 安全分析层负责把扫描结果转成可读结论，包括问题原�
 
 ### 审计报告
 
-审计报告是最终输出。第一阶段使用 Markdown，后续可扩展 Word 或 PDF。
+审计报告是后续阶段的最终输出，计划先使用 Markdown，再扩展 Word 或 PDF；它不属于当前 Phase 1/2 最小闭环。
 
 一份最小可用报告应包含漏洞位置、风险等级、证据、影响说明、修复建议和参考链接。
 
 ## 建议阅读顺序
 
-1. 阅读 `README.md`，了解项目目标和总体架构。
-2. 阅读 `docs/prerequisites.md`，补齐必要前置知识。
-3. 阅读 `docs/deployment-steps.md`，理解如何跑通 PR-Agent 和扫描器。
-4. 阅读 `prompts/security_review.md`，理解 Agent 输出报告的格式要求。
-5. 阅读 `docs/roadmap.md` 和 `docs/project-checklist.md`，了解后续开发顺序。
+1. 阅读 [README](../README.md)，了解项目目标和总体架构。
+2. 阅读 [前置知识](prerequisites.md)，补齐必要基础。
+3. 按 [部署与运行步骤](deployment-steps.md) 跑通 Phase 1 GitHub Action 和 Phase 2 本地 CLI。
+4. 阅读 [安全审查 Prompt](../prompts/security_review.md)，理解当前审查输出约束。
+5. 阅读 [项目路线图](roadmap.md) 和 [任务清单](project-checklist.md)，了解静态扫描、结果解析与报告的后续顺序。
 
 ## 最小可运行闭环
 
-第一阶段不追求复杂功能，先完成下面的闭环：
+当前最小闭环只包含两个 PR-Agent 运行入口：
 
 ```text
-测试 PR
--> PR-Agent 自动审查
--> Semgrep/Bandit 输出 JSON
--> 解析扫描结果
--> 生成 Markdown 安全报告
+Phase 1：GitHub Actions PR-Agent
+-> 同仓库验证 PR
+-> GitHub Actions 自动运行 PR-Agent review
+-> 在 PR 中产生 Action 审查评论
+
+Phase 2：本地 PR-Agent CLI
+-> 同一个验证 PR
+-> Windows 本地 PR-Agent CLI 使用 main 中的可信配置
+-> 在 PR 中产生本地触发的审查评论
+-> 清理临时凭据、验证 PR、分支和探针
 ```
 
-这个闭环跑通后，再考虑知识库增强、报告格式扩展、Web 界面和 PR 评论集成。
+Semgrep、Bandit、npm audit 和结果解析属于 [Phase 3：静态安全扫描与结果归一化](roadmap.md)，Agent 综合分析、Markdown 报告与自动化属于 [Phase 4：Agent 分析、报告与自动化](roadmap.md)；它们不是当前 Phase 1/2 的完成条件。
 
 ## 常见误区
 
-### 误区一：有 AI Review 就不需要扫描器
+### 误区一：当前没接扫描器，就永远不需要扫描器
 
 AI Review 擅长解释上下文，但输出不一定稳定。扫描器基于规则运行，可以提供可复现的技术证据。
 
-本项目采用二者结合的方式：扫描器负责发现问题，Agent 负责解释问题。
+本项目的长期方案仍会结合二者：当前先验证 PR-Agent 的两个运行入口；后续由扫描器提供可复现发现，再由 Agent 解释问题。
 
 ### 误区二：第一版就要做 RAG
 
@@ -86,14 +91,13 @@ AI Review 擅长解释上下文，但输出不一定稳定。扫描器基于规�
 
 ### 误区三：必须修改 PR-Agent 源码
 
-第一阶段不需要修改 PR-Agent 源码。先通过 GitHub Action 或 CLI 跑通 PR-Agent，再围绕扫描和报告模块进行扩展。
+当前 Phase 1/2 不需要修改 PR-Agent 源码。先依次跑通 GitHub Action 和本地 CLI，再按路线图扩展扫描与报告模块。
 
 ## 下一步
 
 完成阅读后，建议按下面顺序动手：
 
-1. 配置 GitHub Action 跑通 PR-Agent。
-2. 在本地运行 Semgrep 或 Bandit。
-3. 保存扫描结果 JSON。
-4. 设计统一的 finding 数据结构。
-5. 生成第一份 Markdown 审计报告。
+1. 按权威部署指南完成 Phase 1 GitHub Action。
+2. 对同一个短生命周期验证 PR 完成 Phase 2 本地 CLI。
+3. 关闭且不合并验证 PR，安全清理分支、探针和临时凭据。
+4. Phase 1/2 验收后，再按路线图进入静态扫描、结果归一化和报告阶段。
