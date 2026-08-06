@@ -144,24 +144,41 @@ $githubSecret = $null
 
 Phase 1 和 Phase 2 都验证完成后：
 
-1. 关闭验证 PR，不合并临时探针；在 GitHub UI 中同时删除远端验证分支，或使用下方 `gh pr close`。
-2. 切回并快进更新 `main`，再用安全的 `git branch -d` 删除下方明确命名的本地验证分支。
-3. 删除任何临时探针文件、日志和测试环境变量，并撤销不再需要的 PAT。
+1. 关闭验证 PR，不合并临时探针，但暂时保留远端验证分支作为本地安全删除的参照。
+2. 切回并快进更新 `main`，拉取明确命名的远端验证分支，并核对本地与远端 SHA 完全相同。
+3. 只有 SHA 相同才用安全的 `git branch -d` 删除本地分支，随后删除远端验证分支。
+4. 删除任何临时探针文件、日志和测试环境变量，并撤销不再需要的 PAT。
 
 以下示例固定使用本文的验证分支名，不要改成通配符或批量删除命令：
 
 ```powershell
-git switch main
-git pull --ff-only
+$ErrorActionPreference = 'Stop'
 $validationPrNumber = Read-Host '验证 PR 编号'
-$validationBranch = 'codex/pr-agent-validation-20260806'
-gh pr close $validationPrNumber --repo susz347/CodeSec-Agent --delete-branch
-git branch -d $validationBranch
+gh pr close $validationPrNumber --repo susz347/CodeSec-Agent
+if ($LASTEXITCODE -ne 0) { throw '关闭验证 PR 失败' }
+git switch main
+if ($LASTEXITCODE -ne 0) { throw '切换 main 失败' }
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw '更新 main 失败' }
+git fetch origin codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '获取远端验证分支失败' }
+$localValidationSha = git rev-parse codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '读取本地验证分支 SHA 失败' }
+$remoteValidationSha = git rev-parse origin/codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '读取远端验证分支 SHA 失败' }
+if ($localValidationSha -ne $remoteValidationSha) { throw '本地与远端验证分支 SHA 不同，停止清理' }
+git branch -d codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '安全删除本地验证分支失败；禁止改用 -D' }
+git push origin --delete codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '删除远端验证分支失败' }
 git branch --list
-git status --short
+git status --short --branch
+git ls-remote --exit-code --heads origin refs/heads/codex/pr-agent-validation
+if ($LASTEXITCODE -eq 0) { throw '远端验证分支仍然存在' }
+if ($LASTEXITCODE -ne 2) { throw '无法确认远端验证分支已删除' }
 ```
 
-禁止使用 `git branch -D`。如果 `-d` 因探针提交未合并而拒绝删除，立即停止并报告仍保留的明确分支名，不要强制删除。若已通过 GitHub UI 关闭 PR 并删除远端分支，则跳过 `gh pr close`，其余本地检查不变。
+禁止使用 `git branch -D`。任一步骤失败都立即停止并报告，不要继续删除。若使用 GitHub UI 关闭 PR，只关闭 PR，不要提前删除远端分支；随后从 `git switch main` 开始执行其余命令。
 
 ## 故障排查
 

@@ -163,10 +163,16 @@ Use the normal main worktree after the enabling PR is merged:
 ```powershell
 git switch main
 git pull --ff-only
-git switch -c codex/pr-agent-validation-20260806
+git switch -c codex/pr-agent-validation
 ```
 
-Add one non-sensitive disposable probe, push this exact branch, and open a same-repository PR targeting `main`. Do not use a Fork. Record its PR number and URL. Formal validation uses the reviewed `.pr_agent.toml` from `main`, never a PR-head override.
+Add and commit one non-sensitive disposable probe, then push the exact branch:
+
+```powershell
+git push -u origin codex/pr-agent-validation
+```
+
+Open a same-repository PR targeting `main`. Do not use a Fork. Record its PR number and URL. Formal validation uses the reviewed `.pr_agent.toml` from `main`, never a PR-head override.
 
 ### Task 11: Verify Action and local CLI on the same PR
 
@@ -189,17 +195,33 @@ An optional pre-merge maintainer check may explicitly use `--config-branch codex
 The probe must never be merged. In the normal worktree, use the exact validation branch name:
 
 ```powershell
-git switch main
-git pull --ff-only
+$ErrorActionPreference = 'Stop'
 $validationPrNumber = Read-Host '验证 PR 编号'
-$validationBranch = 'codex/pr-agent-validation-20260806'
-gh pr close $validationPrNumber --repo susz347/CodeSec-Agent --delete-branch
-git branch -d $validationBranch
+gh pr close $validationPrNumber --repo susz347/CodeSec-Agent
+if ($LASTEXITCODE -ne 0) { throw '关闭验证 PR 失败' }
+git switch main
+if ($LASTEXITCODE -ne 0) { throw '切换 main 失败' }
+git pull --ff-only
+if ($LASTEXITCODE -ne 0) { throw '更新 main 失败' }
+git fetch origin codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '获取远端验证分支失败' }
+$localValidationSha = git rev-parse codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '读取本地验证分支 SHA 失败' }
+$remoteValidationSha = git rev-parse origin/codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '读取远端验证分支 SHA 失败' }
+if ($localValidationSha -ne $remoteValidationSha) { throw '本地与远端验证分支 SHA 不同，停止清理' }
+git branch -d codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '安全删除本地验证分支失败；禁止改用 -D' }
+git push origin --delete codex/pr-agent-validation
+if ($LASTEXITCODE -ne 0) { throw '删除远端验证分支失败' }
 git branch --list
-git status --short
+git status --short --branch
+git ls-remote --exit-code --heads origin refs/heads/codex/pr-agent-validation
+if ($LASTEXITCODE -eq 0) { throw '远端验证分支仍然存在' }
+if ($LASTEXITCODE -ne 2) { throw '无法确认远端验证分支已删除' }
 ```
 
-The GitHub UI may be used instead of `gh pr close` to close the PR and delete its remote branch. Never use `git branch -D`. If safe deletion with `-d` refuses because the probe is unmerged, stop and report the exact remaining branch rather than forcing deletion. Remove temporary probe files/logs, revoke the PAT if no longer needed, and remove the implementation worktree/merged branch only after the enabling PR is confirmed merged.
+The GitHub UI may be used instead of `gh pr close`, but close only the PR and keep the remote branch until the SHA comparison and local `-d` succeed. Never use `git branch -D`. Any failure stops cleanup. Remove temporary probe files/logs, revoke the PAT if no longer needed, and remove the implementation worktree/merged branch only after the enabling PR is confirmed merged.
 
 ## Completion evidence
 
