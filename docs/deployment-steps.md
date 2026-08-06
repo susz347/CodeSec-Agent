@@ -61,7 +61,13 @@ if ($LASTEXITCODE -ne 0) { throw '当前目录不是 Git 仓库' }
 if ((Resolve-Path '.').Path -ne (Resolve-Path $repoRoot).Path) { throw '请先切换到仓库根目录' }
 Get-Command gh -ErrorAction Stop | Out-Null
 gh auth status
-if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI 尚未认证' }
+if ($LASTEXITCODE -ne 0) {
+  Write-Host 'GitHub CLI 尚未认证，即将打开浏览器登录；不要把 PAT 写入命令行。'
+  gh auth login --hostname github.com --git-protocol https --web
+  if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI 浏览器认证失败' }
+  gh auth status
+  if ($LASTEXITCODE -ne 0) { throw 'GitHub CLI 认证状态复查失败' }
+}
 git switch main
 if ($LASTEXITCODE -ne 0) { throw '切换 main 失败' }
 git pull --ff-only
@@ -181,8 +187,8 @@ $githubSecret = $null
 Phase 1 和 Phase 2 都验证完成后：
 
 1. 关闭验证 PR，不合并临时探针，但暂时保留远端验证分支作为本地安全删除的参照。
-2. 切回并快进更新 `main`，拉取明确命名的远端验证分支，并核对本地与远端 SHA 完全相同。
-3. 只有 SHA 相同才用安全的 `git branch -d` 删除本地分支，随后删除远端验证分支。
+2. 切回并快进更新 `main`，直接从 GitHub 远端读取明确分支的真实 SHA，并核对本地 SHA 完全相同。
+3. 只有 SHA 相同才用安全的 `git branch -d` 删除本地分支，再用该 SHA 作为 lease 删除远端分支；远端若发生变化，删除必须失败。
 4. 删除任何临时探针文件、日志和测试环境变量，并撤销不再需要的 PAT。
 
 以下示例固定使用本文的验证分支名，不要改成通配符或批量删除命令：
@@ -196,25 +202,30 @@ git switch main
 if ($LASTEXITCODE -ne 0) { throw '切换 main 失败' }
 git pull --ff-only
 if ($LASTEXITCODE -ne 0) { throw '更新 main 失败' }
-git fetch origin codex/pr-agent-validation
-if ($LASTEXITCODE -ne 0) { throw '获取远端验证分支失败' }
-$localValidationSha = git rev-parse codex/pr-agent-validation
+$remoteRef = 'refs/heads/codex/pr-agent-validation'
+$remoteLines = @(git ls-remote --heads origin $remoteRef)
+if ($LASTEXITCODE -ne 0) { throw '读取远端验证分支失败' }
+if ($remoteLines.Count -ne 1) { throw '远端验证分支结果不是唯一一条，停止清理' }
+$remoteParts = $remoteLines[0] -split '\s+'
+if ($remoteParts.Count -ne 2 -or $remoteParts[1] -ne $remoteRef -or $remoteParts[0] -notmatch '^[0-9a-fA-F]{40}$') { throw '远端验证分支结果格式无效，停止清理' }
+$expectedSha = $remoteParts[0].ToLowerInvariant()
+$localValidationSha = (git rev-parse codex/pr-agent-validation).Trim().ToLowerInvariant()
 if ($LASTEXITCODE -ne 0) { throw '读取本地验证分支 SHA 失败' }
-$remoteValidationSha = git rev-parse origin/codex/pr-agent-validation
-if ($LASTEXITCODE -ne 0) { throw '读取远端验证分支 SHA 失败' }
-if ($localValidationSha -ne $remoteValidationSha) { throw '本地与远端验证分支 SHA 不同，停止清理' }
+if ($localValidationSha -ne $expectedSha) { throw '本地与远端验证分支 SHA 不同，停止清理' }
 git branch -d codex/pr-agent-validation
 if ($LASTEXITCODE -ne 0) { throw '安全删除本地验证分支失败；禁止改用 -D' }
-git push origin --delete codex/pr-agent-validation
-if ($LASTEXITCODE -ne 0) { throw '删除远端验证分支失败' }
+$leaseArg = "--force-with-lease=${remoteRef}:$expectedSha"
+$deleteRefspec = ":$remoteRef"
+git push $leaseArg origin $deleteRefspec
+if ($LASTEXITCODE -ne 0) { throw '远端验证分支已变化或删除失败，停止清理' }
 git branch --list
 git status --short --branch
-git ls-remote --exit-code --heads origin refs/heads/codex/pr-agent-validation
-if ($LASTEXITCODE -eq 0) { throw '远端验证分支仍然存在' }
-if ($LASTEXITCODE -ne 2) { throw '无法确认远端验证分支已删除' }
+$remainingRemote = @(git ls-remote --heads origin $remoteRef)
+if ($LASTEXITCODE -ne 0) { throw '无法复查远端验证分支' }
+if ($remainingRemote.Count -ne 0) { throw '远端验证分支仍然存在' }
 ```
 
-禁止使用 `git branch -D`。任一步骤失败都立即停止并报告，不要继续删除。若使用 GitHub UI 关闭 PR，只关闭 PR，不要提前删除远端分支；随后从 `git switch main` 开始执行其余命令。
+禁止使用 `git branch -D`。任一步骤失败都立即停止并报告，不要继续删除。切回 `main` 并安全删除本地验证分支后，未合并的探针文件会随分支自然消失，无需在 `main` 上手动删除。若使用 GitHub UI 关闭 PR，只关闭 PR，不要提前删除远端分支；随后从 `git switch main` 开始执行其余命令。
 
 ## 故障排查
 

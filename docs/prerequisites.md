@@ -19,10 +19,10 @@ PR 审查系统通常关注：
 
 GitHub Actions 是 GitHub 提供的 CI/CD 自动化能力。它可以在 PR 创建、代码推送或评论触发时运行任务。
 
-本项目使用 GitHub Actions 完成两类自动化：
+本项目分阶段使用 GitHub Actions：
 
-- 触发 PR-Agent 自动审查。
-- 运行安全扫描并保存报告产物。
+- 当前 Phase 1“GitHub Actions PR-Agent”：触发自动 PR review。
+- 后续 Phase 4“Agent 分析、报告与自动化”：把 Phase 3 的安全扫描与报告能力接入自动化并保存产物。
 
 需要理解的关键词：
 
@@ -57,7 +57,7 @@ SAST 适合发现：
 - 弱加密算法。
 - 已知依赖漏洞。
 
-本项目第一阶段关注 Semgrep、Bandit 和 npm audit。
+Semgrep、Bandit 和 npm audit 属于 Phase 3“静态安全扫描与结果归一化”，不属于当前 Phase 1/2 最小闭环。
 
 ## 5. Semgrep
 
@@ -122,8 +122,8 @@ CodeSec-Agent 的一个核心转换过程就是：
 
 ## 建议学习顺序
 
-1. 先理解 Git、PR 和 GitHub Actions。
-2. 再理解 PR-Agent 的输入和输出。
-3. 接着学习 Semgrep、Bandit、npm audit 的基本命令。
+1. 先理解 Git、PR、GitHub Actions 和 GitHub CLI 浏览器认证。
+2. 再理解 Phase 1“GitHub Actions PR-Agent”与 Phase 2“本地 PR-Agent CLI”的输入、输出和凭据边界。
+3. Phase 1/2 验收后，再学习 Phase 3 的 Semgrep、Bandit、npm audit 与结果归一化。
 4. 然后理解 OWASP/CWE 的作用。
-5. 最后再看 Agent 分析和报告生成。
+5. 最后进入 Phase 4 的 Agent 分析、报告生成和自动化。

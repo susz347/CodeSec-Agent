@@ -124,7 +124,7 @@ report/
 3. **Phase 3：静态安全扫描与结果归一化**。
 4. **Phase 4：Agent 分析、报告与自动化**。
 
-当前已实施前两个阶段。DeepSeek 接入、最小权限、安装、验证和故障排查统一维护在 [部署与运行步骤](docs/deployment-steps.md) 中；README 不保存容易过期的 workflow、TOML 或命令副本。
+Phase 1/2 的仓库配置和本地 CLI 安装已实施并通过静态验证，但真实 GitHub Action 与本地 CLI 的端到端验证仍待完成。DeepSeek 接入、最小权限、验证和故障排查统一维护在 [部署与运行步骤](docs/deployment-steps.md) 中；README 不保存容易过期的 workflow、TOML 或命令副本。
 
 ## 开发路线
 
