@@ -40,22 +40,22 @@
 
 ## Phase 3: 静态安全扫描与结果归一化
 
-目标：接入传统安全扫描工具，获得可复现的安全发现，并转换为统一 finding 数据结构。
+目标：先用 Semgrep 获得可复现的安全发现，并转换为统一 finding 数据结构；在此切片完成真实验证后，再独立接入其他扫描器。
 
 主要任务：
 
-- 使用 Semgrep 扫描测试仓库。
-- 对 Python 项目使用 Bandit。
-- 对 Node.js 项目使用 npm audit。
-- 保存并解析各扫描器的 JSON 输出。
-- 设计通用 finding 字段。
+- 使用固定版本 Semgrep 和显式 `p/security-audit` 规则集扫描目标目录。
+- 保存原始 Semgrep JSON，并归一化为版本化 finding 文档。
 - 统一风险等级、文件位置、规则 ID 和证据信息。
+- 在 Semgrep 真实验证完成后，分别以独立适配器接入 Bandit 与 npm audit。
 
 交付物：
 
-- Semgrep、Bandit 或 npm audit 的 JSON 结果。
-- 扫描结果解析模块。
+- Semgrep 的原始与归一化 JSON 结果。
+- Semgrep 扫描执行器与解析模块。
 - 统一 finding 数据结构说明与示例输出。
+
+当前边界：Phase 3 首版不调用 DeepSeek、不写 PR 评论、不阻断合并；`artifacts/` 中的本地扫描产物不提交到 Git。
 
 ## Phase 4: Agent 分析、报告与自动化
 

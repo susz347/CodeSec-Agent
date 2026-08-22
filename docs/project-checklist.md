@@ -9,35 +9,28 @@
 - [x] 在实现分支添加 DeepSeek 共享配置，并禁用备用模型。
 - [x] 静态验证 YAML/TOML、触发器、Fork/Bot guard、超时和 synchronize review 行为。
 - [x] 补充数据外发、提示注入边界和安全验证 PR 文档。
-- [ ] 发布并人工审核启用 PR。
-- [ ] 获得用户明确合并批准，并将启用 PR 合并到 `main`。
-- [ ] 配置 Repository Secret `DEEPSEEK_API_KEY`。
-- [ ] 从更新后的 `main` 创建不含敏感数据的短生命周期验证 PR。
-- [ ] 验证 Action 首次自动 review。
-- [ ] 验证第二次提交触发 synchronize 且只运行 review。
-- [ ] 确认 Action 日志无凭据泄露。
+- [x] 发布、人工审核并合并启用 PR 到 `main`。
+- [x] 配置 Repository Secret `DEEPSEEK_API_KEY`。
+- [x] 从更新后的 `main` 创建不含敏感数据的短生命周期验证 PR。
+- [x] 验证 Action 首次自动 review 与 synchronize review。
+- [x] 确认 Action 日志无凭据泄露。
 
 ## Phase 2：本地 PR-Agent CLI
 
 - [x] 使用 Python 3.12 创建本地虚拟环境。
 - [x] 安装并验证固定版本的本地 PR-Agent CLI。
 - [x] 记录无 `py` 启动器、受限缓存和 LiteLLM warning 的处理方法。
-- [ ] 创建仅限目标仓库、Contents read 与 Pull requests read/write 的短期 Fine-grained PAT。
-- [ ] 仅在用户自己的 PowerShell 进程中注入 DeepSeek Key 与 PAT。
-- [ ] 使用默认分支 `main` 的可信配置审查 Phase 1 的同一个验证 PR。
-- [ ] 确认本地 CLI 发布第二条 review，且日志不含凭据。
-- [ ] 清除进程环境变量并撤销不再需要的 PAT。
-- [ ] 关闭且不合并验证 PR，核对分支 SHA 后安全删除本地/远端分支。
-- [ ] 确认探针随未合并分支消失，工作树保持干净。
+- [x] 创建并在当前 PowerShell 会话中使用最小权限 PAT 与 DeepSeek Key。
+- [x] 使用默认分支 `main` 的可信配置审查验证 PR，并发布第二条 review。
+- [x] 关闭且不合并验证 PR，清理凭据、验证分支和临时探针。
 
 ## Phase 3：静态安全扫描与结果归一化
 
-- [ ] 运行 Semgrep。
+- [x] 安装锁定版本并完成一次真实 Semgrep 扫描验证。
 - [ ] 运行 Bandit 扫描 Python 代码。
 - [ ] 运行 npm audit 扫描 Node.js 依赖。
-- [ ] 保存并解析扫描器 JSON 输出。
-- [ ] 设计统一 finding 数据结构。
-- [ ] 统一风险等级、文件位置、规则 ID 和证据字段。
+- [x] 实现 Semgrep 原始 JSON 保存与离线归一化。
+- [x] 设计统一 finding 数据结构，并统一风险等级、文件位置、规则 ID 和证据字段。
 
 ## Phase 4：Agent 分析、报告与自动化
 
@@ -57,7 +50,7 @@
 - [x] 部署文档覆盖 Phase 1/2、数据边界、验证和安全清理。
 - [x] 新手指南、前置知识和路线图使用统一四阶段术语。
 - [x] 设计与实施记录说明系统边界和验收依赖。
-- [ ] 完成 Phase 1/2 的可复现端到端 Demo，并记录非敏感证据。
+- [x] 完成 Phase 1/2 的可复现端到端 Demo，并记录非敏感证据。
 
 ## 后续增强
 

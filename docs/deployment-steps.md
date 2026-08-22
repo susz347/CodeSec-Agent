@@ -2,12 +2,12 @@
 
 本文是 CodeSec-Agent 的唯一详细部署入口。本项目可概括为四个部署里程碑：
 
-1. **Phase 1：GitHub Actions PR-Agent**（本轮范围，配置已实施，等待真实 PR 验证）。
-2. **Phase 2：本地 PR-Agent CLI**（本轮范围，Windows 安装已验证，等待凭据和真实 PR 验证）。
-3. **Phase 3：静态安全扫描与结果归一化**（待开发）。
+1. **Phase 1：GitHub Actions PR-Agent**（已完成端到端验证）。
+2. **Phase 2：本地 PR-Agent CLI**（已完成端到端验证）。
+3. **Phase 3：静态安全扫描与结果归一化**（Semgrep-first 切片已完成验证）。
 4. **Phase 4：Agent 分析、报告与自动化**（待开发）。
 
-本文只给出 Phase 1 和 Phase 2 的可执行步骤，后两个里程碑不提前堆放未经验证的命令。完整研发阶段、任务与交付物统一见 [项目路线图](roadmap.md)。
+完整研发阶段、任务与交付物统一见 [项目路线图](roadmap.md)。Bandit 与 npm audit 仍未接入，后续将作为独立适配器实施。
 
 ## 版本与安全边界
 
@@ -226,6 +226,20 @@ if ($remainingRemote.Count -ne 0) { throw '远端验证分支仍然存在' }
 ```
 
 禁止使用 `git branch -D`。任一步骤失败都立即停止并报告，不要继续删除。切回 `main` 并安全删除本地验证分支后，未合并的探针文件会随分支自然消失，无需在 `main` 上手动删除。若使用 GitHub UI 关闭 PR，只关闭 PR，不要提前删除远端分支；随后从 `git switch main` 开始执行其余命令。
+
+## Phase 3：本地 Semgrep 扫描
+
+Phase 3 首版只运行 Semgrep。它使用固定的 `1.163.0` 版本和 `p/security-audit` 规则集，将原始输出与统一 finding 文档写入被 Git 忽略的 `artifacts/`。规则集由 Semgrep Registry 提供，因此首次真实扫描需要网络访问。扫描发现不会阻断合并，也不会调用 DeepSeek 或向 PR 写评论。
+
+在仓库根目录执行：
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m scanner.run_semgrep --target . --artifacts artifacts
+Get-Content -LiteralPath 'artifacts\findings.json' -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8
+```
+
+如尚未创建 `.venv`，先用可用 Python 3.12+ 创建它。不要提交 `artifacts/`；其中的产物仅供本地验证或后续受控的自动化流程使用。Bandit 与 npm audit 仍待后续独立实施。
 
 ## 故障排查
 
