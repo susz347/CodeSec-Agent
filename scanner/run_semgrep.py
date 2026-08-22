@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,14 @@ SEMGREP_VERSION = "1.163.0"
 
 class SemgrepRunError(RuntimeError):
     """Raised when a Semgrep scan cannot produce normalized output."""
+
+
+def _semgrep_executable() -> str:
+    executable_name = "semgrep.exe" if os.name == "nt" else "semgrep"
+    installed_executable = Path(sys.executable).with_name(executable_name)
+    if installed_executable.is_file():
+        return installed_executable.as_posix()
+    return "semgrep"
 
 
 def _command_error(completed: subprocess.CompletedProcess[str]) -> SemgrepRunError:
@@ -36,7 +45,7 @@ def run_scan(target: Path, artifacts: Path) -> Path:
     findings_output.unlink(missing_ok=True)
 
     command = [
-        "semgrep",
+        _semgrep_executable(),
         "scan",
         "--config",
         RULESET,
@@ -47,7 +56,12 @@ def run_scan(target: Path, artifacts: Path) -> Path:
     ]
     try:
         completed = subprocess.run(
-            command, capture_output=True, check=False, text=True
+            command,
+            capture_output=True,
+            check=False,
+            encoding="utf-8",
+            errors="replace",
+            text=True,
         )
     except FileNotFoundError as error:
         raise SemgrepRunError(

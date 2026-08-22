@@ -40,6 +40,8 @@ class RunSemgrepTests(unittest.TestCase):
                 ],
                 capture_output=True,
                 check=False,
+                encoding="utf-8",
+                errors="replace",
                 text=True,
             )
 
@@ -65,6 +67,27 @@ class RunSemgrepTests(unittest.TestCase):
             with patch("scanner.run_semgrep.subprocess.run", return_value=completed):
                 with self.assertRaises(SemgrepRunError):
                     run_scan(Path("."), artifacts)
+
+    def test_prefers_semgrep_next_to_current_python(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            scripts = Path(temporary_directory) / "Scripts"
+            scripts.mkdir()
+            python_executable = scripts / "python.exe"
+            semgrep_executable = scripts / "semgrep.exe"
+            python_executable.touch()
+            semgrep_executable.touch()
+            artifacts = Path(temporary_directory) / "artifacts"
+
+            def write_raw_output(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+                output = Path(command[command.index("--output") + 1])
+                output.write_text(json.dumps(VALID_PAYLOAD), encoding="utf-8")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            with patch("scanner.run_semgrep.sys.executable", str(python_executable)):
+                with patch("scanner.run_semgrep.subprocess.run", side_effect=write_raw_output) as run:
+                    run_scan(Path("."), artifacts)
+
+            self.assertEqual(run.call_args.args[0][0], semgrep_executable.as_posix())
 
 
 if __name__ == "__main__":
