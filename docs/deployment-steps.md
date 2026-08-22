@@ -5,7 +5,7 @@
 1. **Phase 1：GitHub Actions PR-Agent**（已完成端到端验证）。
 2. **Phase 2：本地 PR-Agent CLI**（已完成端到端验证）。
 3. **Phase 3：静态安全扫描与结果归一化**（Semgrep-first 切片已完成验证）。
-4. **Phase 4：Agent 分析、报告与自动化**（待开发）。
+4. **Phase 4：Agent 分析、报告与自动化**（本地 JSON/Markdown 报告切片已完成）。
 
 完整研发阶段、任务与交付物统一见 [项目路线图](roadmap.md)。Phase 3 的 Semgrep、Bandit 与 npm audit 已作为独立适配器完成本地验证。
 
@@ -240,6 +240,20 @@ Get-Content -LiteralPath 'artifacts\findings.json' -Raw | ConvertFrom-Json | Con
 ```
 
 如尚未创建 `.venv`，先用可用 Python 3.12+ 创建它。Bandit 使用固定的 `1.9.4` 版本；npm audit 要求目标含 `package-lock.json`，并以 `--package-lock-only --ignore-scripts` 运行，不安装或执行依赖脚本。不要提交 `artifacts/`；其中的产物仅供本地验证或后续受控的自动化流程使用。
+
+## Phase 4：本地 JSON/Markdown 报告
+
+报告 CLI 接收一个或多个 Phase 3 生成的 schema 1.0 finding 文档，统一校验、合并和排序后，在指定目录生成 `security-report.json` 与 `security-report.md`。以下命令合并 Semgrep、Bandit 和 npm audit 的本地结果：
+
+```powershell
+.\.venv\Scripts\python.exe -m reporting.cli `
+  --input artifacts\findings.json `
+  --input artifacts\bandit-findings.json `
+  --input artifacts\npm-audit-findings.json `
+  --output-dir artifacts
+```
+
+两个报告文件只会成对更新；输入无效或提交其中一个文件失败时，命令返回非零退出码并保留原有报告对。零发现是成功结果。当前切片不调用 DeepSeek、不访问 GitHub，也不生成 Excel、DOCX 或 PDF；这些格式将复用同一个统一报告模型在后续切片实现。`artifacts/` 已被 Git 忽略，不要将真实扫描结果或报告提交到仓库。
 
 ## 故障排查
 

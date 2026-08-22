@@ -14,39 +14,38 @@
 
 **Files:** Create reporting/__init__.py, reporting/models.py, reporting/load_findings.py, tests/test_reporting_models.py.
 
-- [ ] Write tests asserting multi-source merge, severity counts, stable error/warning/info/unknown ordering, and rejection of schema != 1.0 or non-object findings.
-- [ ] Run .\.venv\Scripts\python.exe -m unittest tests.test_reporting_models -v and confirm missing reporting modules.
-- [ ] Implement ScanSource and SecurityReport frozen dataclasses plus load_documents(paths). Copy input dictionaries, validate required fields, calculate counts, and sort by severity/tool/path/start_line/id.
-- [ ] Run the focused and complete unittest suites.
-- [ ] Commit as feat: build normalized security reports.
+- [x] Write tests asserting multi-source merge, severity counts, stable error/warning/info/unknown ordering, and rejection of schema != 1.0 or non-object findings.
+- [x] Run .\.venv\Scripts\python.exe -m unittest tests.test_reporting_models -v and confirm missing reporting modules.
+- [x] Implement ScanSource and SecurityReport frozen dataclasses plus load_documents(paths). Copy input dictionaries, validate required fields, calculate counts, and sort by severity/tool/path/start_line/id.
+- [x] Run the focused and complete unittest suites.
+- [x] Commit as feat: build normalized security reports.
 
 ### Task 2: JSON and Markdown renderers
 
 **Files:** Create reporting/render_json.py, reporting/render_markdown.py, tests/test_report_renderers.py.
 
-- [ ] Write tests for deterministic JSON keys and Markdown title, source table, severity table, finding location, message, code fence, metadata, and empty report.
-- [ ] Run tests and confirm missing renderer imports.
-- [ ] Implement render_json(report) with UTF-8-friendly indentation and trailing newline; implement render_markdown(report) without reading files.
-- [ ] Run focused and complete tests.
-- [ ] Commit as feat: render JSON and Markdown security reports.
+- [x] Write tests for deterministic JSON keys and Markdown title, source table, severity table, finding location, message, code fence, metadata, and empty report.
+- [x] Run tests and confirm missing renderer imports.
+- [x] Implement render_json(report) with UTF-8-friendly indentation and trailing newline; implement render_markdown(report) without reading files.
+- [x] Run focused and complete tests.
+- [x] Commit as feat: render JSON and Markdown security reports.
 
 ### Task 3: Atomic report CLI
 
 **Files:** Create reporting/cli.py, tests/test_reporting_cli.py.
 
-- [ ] Write tests for repeated --input, --output-dir, successful dual outputs, invalid input, and absence of partial files after failure.
-- [ ] Run tests and confirm missing CLI module.
-- [ ] Implement main(argv), write temporary sibling files, then replace security-report.json and security-report.md only after both render successfully.
-- [ ] Run focused and complete tests.
-- [ ] Commit as feat: add local security report CLI.
+- [x] Write tests for repeated --input, --output-dir, successful dual outputs, invalid input, and absence of partial files after failure.
+- [x] Run tests and confirm missing CLI module.
+- [x] Implement main(argv), write temporary sibling files, then replace security-report.json and security-report.md only after both render successfully.
+- [x] Run focused and complete tests.
+- [x] Commit as feat: add local security report CLI.
 
 ### Task 4: Documentation and real acceptance
 
 **Files:** Modify .gitignore, docs/roadmap.md, docs/project-checklist.md, docs/deployment-steps.md.
 
-- [ ] Ensure /artifacts/ already ignores report files; document the repeated --input command and Phase 4 first-slice boundary.
-- [ ] Run all tests.
-- [ ] Run the CLI with artifacts/semgrep-findings.json, artifacts/bandit-findings.json, and artifacts/npm-audit-findings.json when present; otherwise generate equivalent current scanner outputs first.
-- [ ] Parse security-report.json, inspect required Markdown sections, confirm report artifacts are ignored, and confirm Git status contains only intended sources/docs/tests.
-- [ ] Commit as docs: document local security reports.
-
+- [x] Ensure /artifacts/ already ignores report files; document the repeated --input command and Phase 4 first-slice boundary.
+- [x] Run all tests.
+- [x] Run the CLI with artifacts/findings.json, artifacts/bandit-findings.json, and artifacts/npm-audit-findings.json when present; otherwise generate equivalent current scanner outputs first.
+- [x] Parse security-report.json, inspect required Markdown sections, confirm report artifacts are ignored, and confirm Git status contains only intended sources/docs/tests.
+- [x] Commit as docs: document local security reports.

@@ -66,7 +66,8 @@
 - 设计和迭代安全审查 Prompt。
 - 结合 finding、代码片段和安全参考生成漏洞解释。
 - 标注确认问题、可疑问题和可能误报。
-- 生成 Markdown 报告、风险汇总和发现项明细。
+- 合并多个 schema 1.0 finding 文档，生成 JSON/Markdown 报告、风险汇总和发现项明细。
+- 在统一报告模型稳定后，依次增加 Excel、DOCX 和 PDF 渲染器。
 - 加入修复建议、CWE/OWASP 参考和完整示例报告。
 - 添加安全扫描 GitHub Action，保存扫描结果与报告产物。
 - 在 PR 评论中输出摘要，并探索按风险阈值提示或阻断合并。
@@ -74,15 +75,17 @@
 交付物：
 
 - 安全分析输出与改进后的 Prompt。
-- Markdown 报告生成模块、示例报告和字段说明。
+- JSON/Markdown 报告生成模块、示例报告和字段说明。
+- Excel、DOCX 和 PDF 报告导出模块。
 - `.github/workflows/security-scan.yml` 与 PR 报告摘要示例。
 - 自动化运行说明。
+
+当前状态：第一切片已完成本地统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON/Markdown 渲染和成对写入回滚。该切片只读取 Phase 3 的本地产物，不调用 DeepSeek、不访问 GitHub，也不提交 `artifacts/`。Excel、DOCX、PDF、Agent 分析和自动化仍待后续切片实现。
 
 ## 后续增强
 
 - 建立 OWASP/CWE 知识库。
 - 引入 RAG 检索增强。
-- 支持 Word/PDF 报告导出。
 - 支持多语言仓库。
 - 增加误报过滤和风险评分。
 - 构建 Web 可视化界面。
