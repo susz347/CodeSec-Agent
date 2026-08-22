@@ -269,7 +269,7 @@ DOCX 生成需要 Node.js；PDF 默认查找 Windows Microsoft YaHei、Linux Not
 
 ### 确定性分析 Agent、增强报告与 PR 摘要
 
-分析 Agent 接收一个或多个 Phase 3 生成的 schema 1.0 finding 文档，按严重度与规则知识对每条 finding 做确定性分类（`confirmed` / `suspicious` / `possible_false_positive`），并组装成因、影响、修复建议与 CWE/OWASP 参考。它只读归一化 finding 的 `code` 与 `message`，不读源文件、不调用 DeepSeek、不访问 GitHub：
+分析 Agent 接收一个或多个 Phase 3 生成的 schema 1.0 finding 文档，按严重度与规则知识对每条 finding 做确定性分类（`confirmed` / `suspicious` / `possible_false_positive`），并组装成因、影响、修复建议与 CWE/OWASP 参考。默认只读归一化 finding 的 `code` 与 `message`、不调用 DeepSeek、不访问 GitHub：
 
 ```powershell
 .\.venv\Scripts\python.exe -m agent.cli `
@@ -279,7 +279,20 @@ DOCX 生成需要 Node.js；PDF 默认查找 Windows Microsoft YaHei、Linux Not
   --output-dir artifacts
 ```
 
-命令原子写出 `artifacts\analysis.json` 与 `artifacts\analysis.md`。传给 `reporting.cli` 的 `--analysis` 可选参数后，JSON 与 Markdown 报告会升级为增强版：每条 finding 附带分类、成因、影响、修复建议与参考。不传 `--analysis` 时行为与前述五格式报告完全一致：
+可选 `--repo-root <目录>` 会让分析层读取 finding 周围的局部源码上下文（安全路径约束 + 行/字节预算），`--diff <unified-diff 文件>` 会把每条 finding 标注为 `changed` / `unchanged` / `unknown`，两者作为机器可验证的 `evidence` / `diff_status` 字段写入 `analysis.json`：
+
+```powershell
+git diff main...HEAD > pr.diff   # 或任意 unified diff
+.\.venv\Scripts\python.exe -m agent.cli `
+  --input artifacts\findings.json `
+  --input artifacts\bandit-findings.json `
+  --input artifacts\npm-audit-findings.json `
+  --repo-root . `
+  --diff pr.diff `
+  --output-dir artifacts
+```
+
+上下文读取只接受仓库相对路径，拒绝绝对路径、`..` 与符号链接逃逸，越界或不可读的 finding 只跳过该条证据、绝不读取根外文件。命令原子写出 `artifacts\analysis.json` 与 `artifacts\analysis.md`。传给 `reporting.cli` 的 `--analysis` 可选参数后，JSON 与 Markdown 报告会升级为增强版：每条 finding 附带分类、成因、影响、修复建议与参考。不传 `--analysis` 时行为与前述五格式报告完全一致：
 
 ```powershell
 .\.venv\Scripts\python.exe -m reporting.cli `
