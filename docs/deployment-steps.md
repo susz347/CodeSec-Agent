@@ -292,7 +292,7 @@ git diff main...HEAD > pr.diff   # 或任意 unified diff
   --output-dir artifacts
 ```
 
-上下文读取只接受仓库相对路径，拒绝绝对路径、`..` 与符号链接逃逸，越界或不可读的 finding 只跳过该条证据、绝不读取根外文件。命令原子写出 `artifacts\analysis.json` 与 `artifacts\analysis.md`。传给 `reporting.cli` 的 `--analysis` 可选参数后，JSON 与 Markdown 报告会升级为增强版：每条 finding 附带分类、成因、影响、修复建议与参考。不传 `--analysis` 时行为与前述五格式报告完全一致：
+上下文读取只接受仓库相对路径，拒绝绝对路径、`..` 与符号链接逃逸，越界或不可读的 finding 只跳过该条证据、绝不读取根外文件。命令原子写出 `artifacts\analysis.json` 与 `artifacts\analysis.md`。传给 `reporting.cli` 的 `--analysis` 可选参数后，五种格式报告都会升级为增强版：每条 finding 附带分类、成因、影响、修复建议、参考、`diff_status` 与证据摘要，并按「分类 > diff > 严重度」的确定性优先级排序。不传 `--analysis` 时行为与前述五格式报告完全一致。报告组同批原子写出一份 `artifacts\manifest.json` 产物清单（文件名 + 字节数 + SHA-256），供校验完整性：
 
 ```powershell
 .\.venv\Scripts\python.exe -m reporting.cli `

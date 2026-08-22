@@ -120,6 +120,23 @@ async function main() {
     if (finding.metadata && Object.keys(finding.metadata).length > 0) {
       children.push(labeled("Metadata", JSON.stringify(finding.metadata)));
     }
+    const analysis = finding._analysis;
+    if (analysis) {
+      children.push(
+        labeled("Classification", analysis.label),
+        labeled("Changed", analysis.diff_status || "unknown"),
+      );
+      if (analysis.title) children.push(labeled("Title", analysis.title));
+      if (analysis.cause) children.push(labeled("Cause", analysis.cause));
+      if (analysis.impact) children.push(labeled("Impact", analysis.impact));
+      if (analysis.remediation) children.push(labeled("Remediation", analysis.remediation));
+      if (analysis.references && analysis.references.length > 0) {
+        children.push(labeled("References", analysis.references.join(", ")));
+      }
+      if (analysis.evidence_summary) {
+        children.push(labeled("Evidence", analysis.evidence_summary));
+      }
+    }
   }
 
   const document = new Document({

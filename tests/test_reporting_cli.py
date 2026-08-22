@@ -22,6 +22,19 @@ class ReportingCliTests(unittest.TestCase):
             self.assertTrue((output / "security-report.md").is_file())
             self.assertEqual(len(list(output.glob("security-report.*"))), 2)
 
+    def test_writes_manifest_alongside_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / "findings.json"; output = root / "reports"
+            source.write_text(json.dumps({"schema_version":"1.0","scan":{"tool":"semgrep","tool_version":"1","ruleset":"rules","target":".","started_at":"2026-08-22T00:00:00Z"},"findings":[]}), encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                result = main(["--input", str(source), "--output-dir", str(output)])
+            self.assertEqual(result, 0)
+            manifest = json.loads((output / "manifest.json").read_text(encoding="utf-8"))
+            self.assertEqual(
+                {artifact["path"] for artifact in manifest["artifacts"]},
+                {"security-report.json", "security-report.md"},
+            )
+
     def test_analysis_enriches_markdown_report(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); source = root / "findings.json"; output = root / "reports"

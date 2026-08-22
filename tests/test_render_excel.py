@@ -3,6 +3,7 @@ from io import BytesIO
 
 from openpyxl import load_workbook
 
+from agent.models import AnalysisDocument, AnalysisItem
 from reporting.models import ScanSource, SecurityReport
 from reporting.render_excel import render_excel
 
@@ -35,6 +36,39 @@ class ExcelRendererTests(unittest.TestCase):
         self.assertEqual(workbook["Findings"]["G2"].value, "Avoid exec.")
         self.assertEqual(workbook["Sources"].page_setup.fitToWidth, 1)
         self.assertEqual(workbook["Findings"].page_setup.orientation, "landscape")
+
+    def test_excel_renders_analysis_columns(self) -> None:
+        source = ScanSource("semgrep", "1", "rules", ".", "2026-08-22T00:00:00Z")
+        finding = {
+            "id": "id",
+            "tool": "semgrep",
+            "rule_id": "rule",
+            "severity": "error",
+            "path": "a.py",
+            "start_line": 2,
+            "message": "Avoid exec.",
+            "code": "exec(x)",
+            "metadata": {"cwe": ["CWE-78"]},
+            "raw_reference": "/results/0",
+        }
+        report = SecurityReport.create([source], [finding])
+        analysis = AnalysisDocument.create(
+            "deterministic",
+            [
+                AnalysisItem(
+                    "id", "confirmed", "OS command injection", "cause",
+                    "impact", "remediation", ("CWE-78",), diff_status="changed",
+                )
+            ],
+        )
+
+        workbook = load_workbook(BytesIO(render_excel(report, analysis)), data_only=False)
+        sheet = workbook["Findings"]
+        self.assertEqual(sheet["K1"].value, "Classification")
+        self.assertEqual(sheet["L1"].value, "Diff Status")
+        self.assertEqual(sheet["K2"].value, "confirmed")
+        self.assertEqual(sheet["L2"].value, "changed")
+        self.assertEqual(sheet["N2"].value, "cause")
 
 
 if __name__ == "__main__":

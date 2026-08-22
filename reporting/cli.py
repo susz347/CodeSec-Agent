@@ -9,6 +9,7 @@ from typing import Sequence
 from agent.models import AnalysisDocument, AnalysisFormatError
 from reporting.errors import ReportRenderError
 from reporting.load_findings import ReportInputError, load_documents
+from reporting.manifest import render_manifest
 from reporting.models import SecurityReport
 from reporting.render_json import render_json
 from reporting.render_markdown import render_markdown
@@ -48,32 +49,31 @@ def _load_analysis(path: Path | None) -> AnalysisDocument | None:
 def _render_format(
     report: SecurityReport, name: str, analysis: AnalysisDocument | None
 ) -> bytes:
-    if analysis is not None and name in ("json", "markdown"):
-        from reporting.render_analysis import (
-            render_analysis_json,
-            render_analysis_markdown,
-        )
-
-        if name == "json":
-            return render_analysis_json(report, analysis).encode("utf-8")
-        return render_analysis_markdown(report, analysis).encode("utf-8")
     if name == "json":
+        if analysis is not None:
+            from reporting.render_analysis import render_analysis_json
+
+            return render_analysis_json(report, analysis).encode("utf-8")
         return render_json(report).encode("utf-8")
     if name == "markdown":
+        if analysis is not None:
+            from reporting.render_analysis import render_analysis_markdown
+
+            return render_analysis_markdown(report, analysis).encode("utf-8")
         return render_markdown(report).encode("utf-8")
     try:
         if name == "xlsx":
             from reporting.render_excel import render_excel
 
-            return render_excel(report)
+            return render_excel(report, analysis)
         if name == "docx":
             from reporting.render_docx import render_docx
 
-            return render_docx(report)
+            return render_docx(report, analysis)
         if name == "pdf":
             from reporting.render_pdf import render_pdf
 
-            return render_pdf(report)
+            return render_pdf(report, analysis)
     except ModuleNotFoundError as error:
         raise ReportRenderError(
             f"{name} rendering dependencies are missing; "
@@ -138,6 +138,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                 temporary = arguments.output_dir / f".security-report.{suffix}.tmp"
                 pairs.append((temporary, output))
                 temporary.write_bytes(rendered[name])
+            manifest_name = "manifest.json"
+            manifest_data = render_manifest(
+                [(f"security-report.{_SUFFIXES[name]}", rendered[name]) for name in formats]
+            ).encode("utf-8")
+            manifest_output = arguments.output_dir / manifest_name
+            manifest_temporary = arguments.output_dir / f".{manifest_name}.tmp"
+            pairs.append((manifest_temporary, manifest_output))
+            manifest_temporary.write_bytes(manifest_data)
             _commit_outputs(pairs)
         finally:
             for temporary, _ in pairs:

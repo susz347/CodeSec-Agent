@@ -6,19 +6,20 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from agent.models import AnalysisDocument
 from reporting.errors import ReportRenderError
 from reporting.models import SecurityReport
 from reporting.render_json import report_dict
 
 
-def render_docx(report: SecurityReport) -> bytes:
+def render_docx(report: SecurityReport, analysis: AnalysisDocument | None = None) -> bytes:
     node = os.environ.get("CODESEC_NODE") or shutil.which("node")
     if not node:
         raise ReportRenderError(
             "DOCX rendering requires Node.js and npm install --ignore-scripts."
         )
     script = Path(__file__).with_suffix(".js")
-    payload = json.dumps(report_dict(report), ensure_ascii=False).encode("utf-8")
+    payload = json.dumps(report_dict(report, analysis), ensure_ascii=False).encode("utf-8")
     try:
         process = subprocess.run(
             [node, str(script)],

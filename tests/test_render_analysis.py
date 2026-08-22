@@ -107,6 +107,42 @@ class RenderAnalysisTests(unittest.TestCase):
         self.assertEqual(item["evidence"], {"path": "app.py", "start_line": 1})
 
 
+class RiskOrderingRenderTests(unittest.TestCase):
+    def _finding(self, identifier: str, severity: str) -> dict:
+        return {
+            "id": identifier,
+            "tool": "semgrep",
+            "rule_id": "rule",
+            "severity": severity,
+            "path": "a.py",
+            "start_line": 1,
+            "start_column": None,
+            "end_line": 1,
+            "end_column": None,
+            "message": "m",
+            "code": None,
+            "metadata": {},
+            "raw_reference": "/results/0",
+        }
+
+    def test_findings_ordered_by_triage_priority(self) -> None:
+        report = SecurityReport.create(
+            sources=[],
+            findings=[self._finding("fp", "info"), self._finding("confirmed", "error")],
+        )
+        analysis = AnalysisDocument.create(
+            "deterministic",
+            [
+                AnalysisItem("fp", "possible_false_positive", "t", "c", "i", "r", (), diff_status="unchanged"),
+                AnalysisItem("confirmed", "confirmed", "t", "c", "i", "r", (), diff_status="changed"),
+            ],
+        )
+        payload = json.loads(render_analysis_json(report, analysis))
+        self.assertEqual(
+            [item["id"] for item in payload["findings"]], ["confirmed", "fp"]
+        )
+
+
 class LoadDocumentsIntegrationTests(unittest.TestCase):
     def test_analysis_references_real_finding_id(self) -> None:
         # Build a report via the real loader path so finding IDs are consistent.

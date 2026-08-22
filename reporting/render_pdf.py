@@ -20,8 +20,11 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from agent.models import AnalysisDocument
 from reporting.errors import ReportRenderError
 from reporting.models import SecurityReport
+from reporting.render_analysis import analysis_items, evidence_summary
+from reporting.risk import order_findings
 
 _FONT_NAME = "CodeSecReport"
 _FONT_CANDIDATES = (
@@ -54,7 +57,11 @@ def _paragraph(value: object, style: ParagraphStyle) -> Paragraph:
     return Paragraph(content, style)
 
 
-def render_pdf(report: SecurityReport) -> bytes:
+def render_pdf(report: SecurityReport, analysis: AnalysisDocument | None = None) -> bytes:
+    by_id = analysis_items(analysis)
+    findings = (
+        order_findings(report.findings, by_id) if analysis is not None else report.findings
+    )
     font = _register_font()
     title = ParagraphStyle(
         "ReportTitle",
@@ -138,7 +145,7 @@ def render_pdf(report: SecurityReport) -> bytes:
     story.extend([summary_table, _paragraph("Findings", heading)])
     if not report.findings:
         story.append(_paragraph("No findings.", body))
-    for item in report.findings:
+    for item in findings:
         story.extend(
             [
                 _paragraph(f"[{item['severity']}] {item['rule_id']}", finding_heading),
@@ -154,6 +161,28 @@ def render_pdf(report: SecurityReport) -> bytes:
         if item.get("metadata"):
             metadata = json.dumps(item["metadata"], ensure_ascii=False, sort_keys=True)
             story.append(_paragraph(f"Metadata: {metadata}", body))
+        if analysis is not None:
+            analysis_item = by_id.get(item["id"])
+            if analysis_item:
+                story.extend(
+                    [
+                        _paragraph(f"Classification: {analysis_item['label']}", body),
+                        _paragraph(f"Changed: {analysis_item.get('diff_status', 'unknown')}", body),
+                    ]
+                )
+                if analysis_item.get("title"):
+                    story.append(_paragraph(f"Title: {analysis_item['title']}", body))
+                if analysis_item.get("cause"):
+                    story.append(_paragraph(f"Cause: {analysis_item['cause']}", body))
+                if analysis_item.get("impact"):
+                    story.append(_paragraph(f"Impact: {analysis_item['impact']}", body))
+                if analysis_item.get("remediation"):
+                    story.append(_paragraph(f"Remediation: {analysis_item['remediation']}", body))
+                if analysis_item.get("references"):
+                    story.append(_paragraph(f"References: {', '.join(analysis_item['references'])}", body))
+                evidence = evidence_summary(analysis_item.get("evidence"))
+                if evidence:
+                    story.append(_paragraph(f"Evidence: {evidence}", body))
         story.append(Spacer(1, 2 * mm))
 
     buffer = BytesIO()
