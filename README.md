@@ -138,12 +138,13 @@ Phase 1/2 的仓库配置和本地 CLI 安装已实施并通过静态验证，�
 
 ## 当前状态
 
-Phase 1/2（PR-Agent 双入口）与 Phase 3（Semgrep/Bandit/npm audit 归一化）已完成。Phase 4 已完成本地多格式报告（JSON/Markdown/Excel/DOCX/PDF）、确定性分析 Agent（确认/可疑/误报分类、CWE/OWASP 知识库、修复建议）、完整示例报告与安全扫描 GitHub Action（默认只提示不阻断）。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权：
+Phase 1/2（PR-Agent 双入口）与 Phase 3（Semgrep/Bandit/npm audit 归一化）已完成。Phase 4 已完成本地多格式报告（JSON/Markdown/Excel/DOCX/PDF）、确定性分析 Agent（确认/可疑/误报分类、CWE/OWASP 知识库、修复建议）、完整示例报告与安全扫描 GitHub Action（默认只提示不阻断）。分析层已扩展上下文证据（安全路径约束 + 行/字节预算）与 PR diff 过滤（changed/unchanged/unknown）。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权：
 
 ```text
 PR-Agent 审查
   + Semgrep/Bandit/npm audit 归一化
   + 确定性安全分析 Agent
+  + 上下文证据 + PR diff 过滤
   + 多格式报告 + 完整示例报告
   + 安全扫描 CI（仅提示，不阻断）
 ```
