@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Mapping, Protocol, Sequence
 
 from agent.knowledge import HIGH_CONFIDENCE, lookup, signature
+from agent.llm import LlmClient, build_llm_request, parse_llm_response
 from agent.models import AnalysisDocument, AnalysisFormatError, AnalysisItem
 
 _SEVERITY_LABEL = {
@@ -124,12 +125,17 @@ class DeterministicReviewer:
 
 
 class LlmReviewer:
-    """Pluggable LLM backend stub.
+    """LLM backend that delegates to a pluggable client and validates the contract.
 
-    Real DeepSeek calls require a separate authorization and are not wired here.
+    No real model call is wired here: a caller must supply an ``LlmClient``.
+    Findings the model does not cover fall back to deterministic analysis, so a
+    partial or failed response never silently drops a finding.
     """
 
     backend_name = "deepseek"
+
+    def __init__(self, client: LlmClient | None = None) -> None:
+        self._client = client
 
     def analyze(
         self,
@@ -138,9 +144,51 @@ class LlmReviewer:
         diff_statuses: Mapping[str, str] | None = None,
         evidence: Mapping[str, dict[str, Any]] | None = None,
     ) -> AnalysisDocument:
-        raise NotImplementedError(
-            "LlmReviewer requires an authorized DeepSeek integration; "
-            "use DeterministicReviewer for offline analysis."
+        if self._client is None:
+            raise NotImplementedError(
+                "LlmReviewer requires an LlmClient; no real DeepSeek call is wired."
+            )
+        diff_statuses = diff_statuses or {}
+        evidence = evidence or {}
+        payload = self._client.complete(build_llm_request(findings, evidence))
+        verdicts = parse_llm_response(payload, findings, evidence)
+        verdict_by_id = {verdict.finding_id: verdict for verdict in verdicts}
+        fallback = DeterministicReviewer()
+        items = [
+            self._to_item(
+                finding,
+                verdict_by_id.get(str(finding["id"])),
+                diff_statuses.get(str(finding["id"]), "unknown"),
+                evidence.get(str(finding["id"])),
+                fallback,
+            )
+            for finding in findings
+        ]
+        return AnalysisDocument.create(self.backend_name, items)
+
+    def _to_item(
+        self,
+        finding: dict[str, Any],
+        verdict: Any,
+        diff_status: str,
+        context: dict[str, Any] | None,
+        fallback: DeterministicReviewer,
+    ) -> AnalysisItem:
+        if verdict is None:
+            return fallback._analyze_finding(
+                finding, diff_status=diff_status, evidence=context
+            )
+        return AnalysisItem(
+            finding_id=str(finding["id"]),
+            label=verdict.label,
+            title=verdict.title,
+            cause=verdict.cause,
+            impact=verdict.impact,
+            remediation=verdict.remediation,
+            references=verdict.references,
+            diff_status=diff_status,
+            evidence=context,
+            evidence_refs=tuple(ref.to_dict() for ref in verdict.evidence_refs),
         )
 
 

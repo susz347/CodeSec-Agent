@@ -27,6 +27,7 @@ class AnalysisItem:
     references: tuple[str, ...]
     diff_status: str = "unknown"
     evidence: dict[str, Any] | None = None
+    evidence_refs: tuple[dict[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
         if self.label not in LABELS:
@@ -44,6 +45,7 @@ class AnalysisItem:
             "remediation": self.remediation,
             "references": list(self.references),
             "diff_status": self.diff_status,
+            "evidence_refs": list(self.evidence_refs),
         }
         if self.evidence is not None:
             value["evidence"] = self.evidence
@@ -100,6 +102,9 @@ class AnalysisDocument:
                         references=tuple(str(r) for r in item.get("references", [])),
                         diff_status=str(item.get("diff_status", "unknown")),
                         evidence=evidence if isinstance(evidence, dict) else None,
+                        evidence_refs=tuple(
+                            r for r in item.get("evidence_refs", []) if isinstance(r, dict)
+                        ),
                     )
                 )
             except KeyError as error:
