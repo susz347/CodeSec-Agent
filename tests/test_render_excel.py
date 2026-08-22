@@ -33,6 +33,8 @@ class ExcelRendererTests(unittest.TestCase):
         self.assertEqual(workbook["Sources"]["A2"].value, "semgrep")
         self.assertEqual(workbook["Findings"]["A2"].value, "id")
         self.assertEqual(workbook["Findings"]["G2"].value, "Avoid exec.")
+        self.assertEqual(workbook["Sources"].page_setup.fitToWidth, 1)
+        self.assertEqual(workbook["Findings"].page_setup.orientation, "landscape")
 
 
 if __name__ == "__main__":

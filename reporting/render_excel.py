@@ -35,6 +35,18 @@ def _style_body(sheet: Worksheet) -> None:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
 
 
+def _configure_print(sheet: Worksheet, *, landscape: bool = False) -> None:
+    sheet.sheet_properties.pageSetUpPr.fitToPage = True
+    sheet.page_setup.fitToWidth = 1
+    sheet.page_setup.fitToHeight = 0
+    sheet.page_setup.paperSize = sheet.PAPERSIZE_A4
+    sheet.page_setup.orientation = "landscape" if landscape else "portrait"
+    sheet.page_margins.left = 0.25
+    sheet.page_margins.right = 0.25
+    sheet.page_margins.top = 0.5
+    sheet.page_margins.bottom = 0.5
+
+
 def render_excel(report: SecurityReport) -> bytes:
     workbook = Workbook()
     summary = workbook.active
@@ -106,6 +118,11 @@ def render_excel(report: SecurityReport) -> bytes:
 
     for sheet in workbook.worksheets:
         _style_body(sheet)
+    _configure_print(summary)
+    _configure_print(sources, landscape=True)
+    _configure_print(findings, landscape=True)
+    sources.print_title_rows = "1:1"
+    findings.print_title_rows = "1:1"
 
     buffer = BytesIO()
     workbook.save(buffer)
