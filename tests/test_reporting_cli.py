@@ -1,5 +1,6 @@
 import io
 import json
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -87,6 +88,20 @@ class ReportingCliTests(unittest.TestCase):
 
             self.assertEqual(result, 1)
             self.assertEqual(list(output.glob(".*.tmp")), [])
+
+    def test_missing_optional_dependency_returns_install_command(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / "findings.json"; output = root / "reports"
+            source.write_text(json.dumps({"schema_version":"1.0","scan":{"tool":"semgrep","tool_version":"1","ruleset":"rules","target":".","started_at":"2026-08-22T00:00:00Z"},"findings":[]}), encoding="utf-8")
+            stderr = io.StringIO()
+
+            with patch.dict(sys.modules, {"reporting.render_excel": None}):
+                with redirect_stderr(stderr):
+                    result = main(["--input", str(source), "--output-dir", str(output), "--format", "xlsx"])
+
+            self.assertEqual(result, 1)
+            self.assertIn("pip install -r requirements-dev.txt", stderr.getvalue())
+            self.assertFalse(output.exists())
 
 
 if __name__ == "__main__": unittest.main()

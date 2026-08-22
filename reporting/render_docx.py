@@ -31,6 +31,10 @@ def render_docx(report: SecurityReport) -> bytes:
         raise ReportRenderError("Cannot start the DOCX renderer.") from error
     if process.returncode != 0:
         detail = process.stderr.decode("utf-8", errors="replace").strip()
+        if "Cannot find module" in detail:
+            raise ReportRenderError(
+                "DOCX rendering dependencies are missing; run: npm install --ignore-scripts"
+            )
         raise ReportRenderError(f"DOCX rendering failed: {detail or 'unknown error'}")
     if not process.stdout.startswith(b"PK"):
         raise ReportRenderError("DOCX renderer returned an invalid document.")

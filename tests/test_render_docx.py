@@ -1,7 +1,10 @@
+import subprocess
 import unittest
 from io import BytesIO
 from zipfile import ZipFile
+from unittest.mock import patch
 
+from reporting.errors import ReportRenderError
 from reporting.models import ScanSource, SecurityReport
 from reporting.render_docx import render_docx
 
@@ -29,6 +32,18 @@ class DocxRendererTests(unittest.TestCase):
             document = archive.read("word/document.xml").decode("utf-8")
         for text in ("Security Report", "Scan Sources", "Summary", "rule", "Avoid exec."):
             self.assertIn(text, document)
+
+    def test_missing_node_package_returns_install_command(self) -> None:
+        process = subprocess.CompletedProcess(
+            ["node"],
+            1,
+            stdout=b"",
+            stderr=b"Cannot find module 'docx'",
+        )
+        with patch("reporting.render_docx.shutil.which", return_value="node"):
+            with patch("reporting.render_docx.subprocess.run", return_value=process):
+                with self.assertRaisesRegex(ReportRenderError, "npm install --ignore-scripts"):
+                    render_docx(SecurityReport.create([], []))
 
 
 if __name__ == "__main__":
