@@ -1,0 +1,1 @@
+{"version":"1.163.0","results":[{"check_id":"python.lang.security.audit.exec-used","path":"example.py","start":{"line":3,"col":1},"end":{"line":3,"col":16},"extra":{"message":"Avoid exec.","severity":"WARNING","lines":"exec(user_input)","metadata":{"cwe":["CWE-78"],"owasp":["A03:2021 - Injection"]}}}],"errors":[],"paths":{"scanned":["example.py"],"skipped":[]}}
