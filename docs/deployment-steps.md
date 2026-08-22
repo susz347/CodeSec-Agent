@@ -5,7 +5,7 @@
 1. **Phase 1：GitHub Actions PR-Agent**（已完成端到端验证）。
 2. **Phase 2：本地 PR-Agent CLI**（已完成端到端验证）。
 3. **Phase 3：静态安全扫描与结果归一化**（Semgrep-first 切片已完成验证）。
-4. **Phase 4：Agent 分析、报告与自动化**（本地五格式报告切片已完成）。
+4. **Phase 4：Agent 分析、报告与自动化**（本地五格式报告、确定性分析与 PR 摘要切片已完成）。
 
 完整研发阶段、任务与交付物统一见 [项目路线图](roadmap.md)。Phase 3 的 Semgrep、Bandit 与 npm audit 已作为独立适配器完成本地验证。
 
@@ -266,6 +266,41 @@ npm install --ignore-scripts
 `--format` 可重复指定 `json`、`markdown`、`xlsx`、`docx` 或 `pdf`；不指定时保持 JSON/Markdown 兼容行为。所有选中格式只会作为一个报告组更新；输入无效、渲染失败或提交任一文件失败时，命令返回非零退出码、清理临时文件并恢复原有报告组。零发现是成功结果。
 
 DOCX 生成需要 Node.js；PDF 默认查找 Windows Microsoft YaHei、Linux Noto Sans CJK 或 DejaVu Sans，也可通过进程级 `CODESEC_REPORT_FONT` 指定 TTF/TTC 字体。当前切片不调用 DeepSeek、不访问 GitHub。`artifacts/` 已被 Git 忽略，不要将真实扫描结果或报告提交到仓库。
+
+### 确定性分析 Agent、增强报告与 PR 摘要
+
+分析 Agent 接收一个或多个 Phase 3 生成的 schema 1.0 finding 文档，按严重度与规则知识对每条 finding 做确定性分类（`confirmed` / `suspicious` / `possible_false_positive`），并组装成因、影响、修复建议与 CWE/OWASP 参考。它只读归一化 finding 的 `code` 与 `message`，不读源文件、不调用 DeepSeek、不访问 GitHub：
+
+```powershell
+.\.venv\Scripts\python.exe -m agent.cli `
+  --input artifacts\findings.json `
+  --input artifacts\bandit-findings.json `
+  --input artifacts\npm-audit-findings.json `
+  --output-dir artifacts
+```
+
+命令原子写出 `artifacts\analysis.json` 与 `artifacts\analysis.md`。传给 `reporting.cli` 的 `--analysis` 可选参数后，JSON 与 Markdown 报告会升级为增强版：每条 finding 附带分类、成因、影响、修复建议与参考。不传 `--analysis` 时行为与前述五格式报告完全一致：
+
+```powershell
+.\.venv\Scripts\python.exe -m reporting.cli `
+  --input artifacts\findings.json `
+  --input artifacts\bandit-findings.json `
+  --input artifacts\npm-audit-findings.json `
+  --analysis artifacts\analysis.json `
+  --output-dir artifacts `
+  --format markdown
+```
+
+`reporting.summary` 从增强 JSON 报告生成仅含 finding 总数、各级严重度计数、分类计数、rule_id 列表、path 列表与产物链接的紧凑摘要，绝不包含源码或凭据；`error>0` 时追加「建议人工复核」提示，但只是提示、不阻断：
+
+```powershell
+.\.venv\Scripts\python.exe -m reporting.summary `
+  --report artifacts\security-report.json `
+  --artifacts-url "https://github.com/<owner>/<repo>/actions/runs/<run_id>" `
+  --output pr-summary.md
+```
+
+上述「扫描 → 分析 → 增强报告 → 产物上传 → PR 摘要」流程已固化为 [`.github/workflows/security-scan.yml`](../.github/workflows/security-scan.yml)，与 `pr-agent.yml` 一致跳过 Fork 与 Bot、仅用 `contents: read` 加 `pull-requests: write`，且扫描发现本身永不 fail 作业。合并阻断策略、真实 DeepSeek 调用与分支推送留待单独授权。
 
 ## 故障排查
 
