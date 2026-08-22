@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 from typing import Sequence
 
+from agent.models import AnalysisDocument, AnalysisFormatError
 from reporting.errors import ReportRenderError
 from reporting.load_findings import ReportInputError, load_documents
 from reporting.models import SecurityReport
@@ -30,7 +32,31 @@ def _selected_formats(values: list[str] | None) -> tuple[str, ...]:
     return tuple(name for name in _FORMAT_ORDER if name in values)
 
 
-def _render_format(report: SecurityReport, name: str) -> bytes:
+def _load_analysis(path: Path | None) -> AnalysisDocument | None:
+    if path is None:
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReportInputError(f"Cannot read analysis document: {path}") from error
+    try:
+        return AnalysisDocument.from_dict(payload)
+    except AnalysisFormatError as error:
+        raise ReportInputError(str(error)) from error
+
+
+def _render_format(
+    report: SecurityReport, name: str, analysis: AnalysisDocument | None
+) -> bytes:
+    if analysis is not None and name in ("json", "markdown"):
+        from reporting.render_analysis import (
+            render_analysis_json,
+            render_analysis_markdown,
+        )
+
+        if name == "json":
+            return render_analysis_json(report, analysis).encode("utf-8")
+        return render_analysis_markdown(report, analysis).encode("utf-8")
     if name == "json":
         return render_json(report).encode("utf-8")
     if name == "markdown":
@@ -94,11 +120,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=(*_FORMAT_ORDER, "all"),
         dest="formats",
     )
+    parser.add_argument("--analysis", type=Path)
     arguments = parser.parse_args(argv)
     try:
         report = load_documents(arguments.input)
+        analysis = _load_analysis(arguments.analysis)
         formats = _selected_formats(arguments.formats)
-        rendered = {name: _render_format(report, name) for name in formats}
+        rendered = {
+            name: _render_format(report, name, analysis) for name in formats
+        }
         arguments.output_dir.mkdir(parents=True, exist_ok=True)
         pairs: list[tuple[Path, Path]] = []
         try:

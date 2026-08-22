@@ -22,6 +22,36 @@ class ReportingCliTests(unittest.TestCase):
             self.assertTrue((output / "security-report.md").is_file())
             self.assertEqual(len(list(output.glob("security-report.*"))), 2)
 
+    def test_analysis_enriches_markdown_report(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / "findings.json"; output = root / "reports"
+            finding = {
+                "id": "f1", "tool": "semgrep", "rule_id": "python.lang.security.audit.exec-used",
+                "severity": "error", "path": "app.py", "start_line": 3, "start_column": None,
+                "end_line": 3, "end_column": None, "message": "Avoid exec.",
+                "code": "exec(user_input)", "metadata": {}, "raw_reference": "/results/0",
+            }
+            source.write_text(json.dumps({"schema_version": "1.0", "scan": {"tool": "semgrep", "tool_version": "1", "ruleset": "rules", "target": ".", "started_at": "2026-08-22T00:00:00Z"}, "findings": [finding]}), encoding="utf-8")
+            analysis_path = root / "analysis.json"
+            analysis_path.write_text(json.dumps({"schema_version": "1.0", "backend": "deterministic", "generated_at": "2026-08-22T00:00:00Z", "items": [{"finding_id": "f1", "label": "confirmed", "title": "t", "cause": "c", "impact": "i", "remediation": "r", "references": ["CWE-78"]}]}), encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                result = main(["--input", str(source), "--output-dir", str(output), "--analysis", str(analysis_path)])
+            self.assertEqual(result, 0)
+            markdown = (output / "security-report.md").read_text(encoding="utf-8")
+            self.assertIn("Classification: confirmed", markdown)
+            self.assertIn("Remediation: r", markdown)
+
+    def test_invalid_analysis_returns_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory); source = root / "findings.json"; output = root / "reports"
+            source.write_text(json.dumps({"schema_version":"1.0","scan":{"tool":"semgrep","tool_version":"1","ruleset":"rules","target":".","started_at":"2026-08-22T00:00:00Z"},"findings":[]}), encoding="utf-8")
+            analysis_path = root / "analysis.json"
+            analysis_path.write_text('{"schema_version":"2.0","items":[]}', encoding="utf-8")
+            with redirect_stderr(io.StringIO()):
+                result = main(["--input", str(source), "--output-dir", str(output), "--analysis", str(analysis_path)])
+            self.assertEqual(result, 1)
+            self.assertFalse((output / "security-report.md").exists())
+
     def test_all_format_generates_five_reports(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory); source = root / "findings.json"; output = root / "reports"
