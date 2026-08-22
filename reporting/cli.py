@@ -10,6 +10,40 @@ from reporting.render_json import render_json
 from reporting.render_markdown import render_markdown
 
 
+def _commit_report_pair(
+    json_temp: Path,
+    json_output: Path,
+    markdown_temp: Path,
+    markdown_output: Path,
+) -> None:
+    pairs = ((json_temp, json_output), (markdown_temp, markdown_output))
+    backups: list[tuple[Path, Path]] = []
+    committed: list[Path] = []
+    try:
+        for _, output in pairs:
+            backup = output.with_name(f".{output.name}.bak")
+            backup.unlink(missing_ok=True)
+            if output.exists():
+                output.replace(backup)
+                backups.append((backup, output))
+        for temporary, output in pairs:
+            temporary.replace(output)
+            committed.append(output)
+    except OSError:
+        for output in committed:
+            output.unlink(missing_ok=True)
+        for backup, output in backups:
+            if backup.exists():
+                backup.replace(output)
+        raise
+    else:
+        for backup, _ in backups:
+            try:
+                backup.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate local security reports.")
     parser.add_argument("--input", action="append", required=True, type=Path)
@@ -26,8 +60,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         try:
             json_temp.write_text(json_content, encoding="utf-8")
             markdown_temp.write_text(markdown_content, encoding="utf-8")
-            json_temp.replace(json_output)
-            markdown_temp.replace(markdown_output)
+            _commit_report_pair(
+                json_temp,
+                json_output,
+                markdown_temp,
+                markdown_output,
+            )
         finally:
             json_temp.unlink(missing_ok=True)
             markdown_temp.unlink(missing_ok=True)
