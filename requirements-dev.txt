@@ -1,1 +1,2 @@
 semgrep==1.163.0
+bandit==1.9.4

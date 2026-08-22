@@ -34,6 +34,18 @@ class FindingTests(unittest.TestCase):
         )
         self.assertEqual(metadata, {"cwe": ["CWE-78"]})
 
+    def test_identifier_includes_tool(self) -> None:
+        arguments = {
+            "rule_id": "B101", "severity": "info", "path": "example.py",
+            "start_line": 1, "start_column": None, "end_line": 1,
+            "end_column": None, "message": "Avoid assert.", "code": None,
+            "metadata": {}, "raw_reference": "/results/0",
+        }
+        self.assertNotEqual(
+            Finding.create(tool="semgrep", **arguments).id,
+            Finding.create(tool="bandit", **arguments).id,
+        )
+
 
 class ScanDocumentTests(unittest.TestCase):
     def test_document_has_fixed_schema_and_scan_metadata(self) -> None:
@@ -42,6 +54,13 @@ class ScanDocumentTests(unittest.TestCase):
         self.assertEqual(payload["scan"]["tool"], "semgrep")
         self.assertEqual(payload["scan"]["ruleset"], "p/security-audit")
         self.assertEqual(payload["scan"]["tool_version"], "1.163.0")
+
+    def test_document_accepts_scanner_specific_metadata(self) -> None:
+        payload = ScanDocument.create(
+            "1.9.4", ".", [], tool="bandit", ruleset="bandit-default"
+        ).to_dict()
+        self.assertEqual(payload["scan"]["tool"], "bandit")
+        self.assertEqual(payload["scan"]["ruleset"], "bandit-default")
 
 
 if __name__ == "__main__":

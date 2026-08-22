@@ -21,8 +21,9 @@ class RunSemgrepTests(unittest.TestCase):
                 output.write_text(json.dumps(VALID_PAYLOAD), encoding="utf-8")
                 return subprocess.CompletedProcess(command, 1, "", "")
 
-            with patch("scanner.run_semgrep.subprocess.run", side_effect=write_raw_output) as run:
-                result = run_scan(Path("."), artifacts)
+            with patch("scanner.run_semgrep._semgrep_executable", return_value="semgrep"):
+                with patch("scanner.run_semgrep.subprocess.run", side_effect=write_raw_output) as run:
+                    result = run_scan(Path("."), artifacts)
 
             raw_output = artifacts / "semgrep-result.json"
             self.assertEqual(result, artifacts / "findings.json")

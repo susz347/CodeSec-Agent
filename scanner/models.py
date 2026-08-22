@@ -43,19 +43,21 @@ class Finding:
         code: str | None,
         metadata: dict[str, Any],
         raw_reference: str,
+        *,
+        tool: str = "semgrep",
     ) -> Finding:
         """Create a finding with a deterministic identifier and severity."""
         normalized_severity = severity.lower()
         normalized_metadata = dict(metadata)
         if normalized_severity not in _KNOWN_SEVERITIES:
-            normalized_metadata["semgrep_severity"] = severity
+            normalized_metadata[f"{tool.replace('-', '_')}_severity"] = severity
             normalized_severity = "unknown"
 
-        identifier_source = f"semgrep|{rule_id}|{path}|{start_line}|{start_column}"
+        identifier_source = f"{tool}|{rule_id}|{path}|{start_line}|{start_column}"
         identifier = sha256(identifier_source.encode("utf-8")).hexdigest()[:16]
         return cls(
             id=identifier,
-            tool="semgrep",
+            tool=tool,
             rule_id=rule_id,
             severity=normalized_severity,
             path=path,
@@ -98,16 +100,22 @@ class ScanDocument:
 
     @classmethod
     def create(
-        cls, tool_version: str, target: str, findings: list[Finding]
+        cls,
+        tool_version: str,
+        target: str,
+        findings: list[Finding],
+        *,
+        tool: str = "semgrep",
+        ruleset: str = "p/security-audit",
     ) -> ScanDocument:
         """Create a document with Semgrep-specific scan metadata."""
         started_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         return cls(
             schema_version="1.0",
             scan={
-                "tool": "semgrep",
+                "tool": tool,
                 "tool_version": tool_version,
-                "ruleset": "p/security-audit",
+                "ruleset": ruleset,
                 "target": target,
                 "started_at": started_at,
             },
