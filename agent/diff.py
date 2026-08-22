@@ -3,13 +3,17 @@
 This module only reports whether a finding falls inside the added lines of a
 diff. It deliberately does not distinguish "new" from "existing" findings: that
 requires a baseline and ground-truth data, which is a later step.
+
+Parsing tracks the ``diff --git`` block state so that ``+++ b/<path>`` is only
+treated as a file header while inside a block header, never as an added source
+line (whose content happens to start with ``++ b/``) inside a hunk.
 """
 
 from __future__ import annotations
 
 import re
 
-_FILE_HEADER = re.compile(r"^\+\+\+ b/(.+)$")
+_FILE_HEADER = re.compile(r"^\+{3} b/(.+)$")
 _HUNK_HEADER = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 
 
@@ -18,31 +22,36 @@ def parse_unified_diff(text: str) -> dict[str, tuple[tuple[int, int], ...]]:
 
     Ranges are 1-based and inclusive. Only added lines are tracked; removed and
     context lines advance the new-file line counter without producing ranges.
-    Deleted files (``+++ /dev/null``) and rename/binary hunks are ignored, so
-    their paths are simply absent from the result.
+    Deleted files (``+++ /dev/null``), rename/binary hunks, and combined diffs
+    are ignored, so their paths are simply absent from the result.
     """
     changed: dict[str, list[tuple[int, int]]] = {}
     current_file: str | None = None
     new_line = 0
+    in_header = False
 
     for raw in text.splitlines():
-        if raw.startswith("+++ "):
-            match = _FILE_HEADER.match(raw)
-            current_file = match.group(1) if match else None
+        if raw.startswith("diff --git "):
+            current_file = None
             new_line = 0
+            in_header = True
             continue
-        if raw.startswith("---"):
-            continue
-        if raw.startswith("@@"):
+        if raw.startswith("@@ "):
             match = _HUNK_HEADER.match(raw)
             new_line = int(match.group(1)) if match else 0
+            in_header = False
+            continue
+        if in_header:
+            if raw.startswith("+++ "):
+                match = _FILE_HEADER.match(raw)
+                current_file = match.group(1) if match else None
             continue
         if current_file is None:
             continue
         if raw.startswith("+"):
             changed.setdefault(current_file, []).append((new_line, new_line))
             new_line += 1
-        elif raw.startswith("-"):
+        elif raw.startswith("-") or raw.startswith("\\"):
             continue
         else:
             new_line += 1

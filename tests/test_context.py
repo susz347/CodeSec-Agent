@@ -2,8 +2,9 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from typing import Iterable
 
-from agent.context import ContextError, PathEscapeError, read_context
+from agent.context import ContextError, PathEscapeError, _collect_window, read_context
 
 
 def _finding(path: str = "app.py", start: int = 15, end: int = 16) -> dict[str, object]:
@@ -115,6 +116,39 @@ class ReadContextTests(unittest.TestCase):
             (root / "app.py").write_text("a\n", encoding="utf-8")
             with self.assertRaises(ContextError):
                 read_context(_finding(start=10, end=10), root)
+
+
+class CollectWindowTests(unittest.TestCase):
+    def test_stops_reading_at_line_window(self) -> None:
+        consumed: list[int] = []
+
+        def source() -> Iterable[str]:
+            for index in range(1, 1001):
+                consumed.append(index)
+                yield f"line {index}\n"
+
+        selected, truncated, last = _collect_window(
+            source(), path="app.py", window_start=3, window_end=7, start_line=5, max_bytes=8192
+        )
+        self.assertEqual(consumed[-1], 8)
+        self.assertEqual(last, 7)
+        self.assertEqual(len(selected), 5)
+        self.assertFalse(truncated)
+
+    def test_stops_reading_at_byte_limit(self) -> None:
+        consumed: list[int] = []
+
+        def source() -> Iterable[str]:
+            for index in range(1, 1001):
+                consumed.append(index)
+                yield ("x" * 500) + "\n"
+
+        selected, truncated, last = _collect_window(
+            source(), path="app.py", window_start=1, window_end=1000, start_line=1, max_bytes=100
+        )
+        self.assertTrue(truncated)
+        self.assertEqual(consumed, [1])
+        self.assertEqual(selected, [])
 
 
 if __name__ == "__main__":

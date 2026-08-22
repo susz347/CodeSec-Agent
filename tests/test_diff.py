@@ -56,6 +56,17 @@ class ParseUnifiedDiffTests(unittest.TestCase):
         diff = "diff --git a/gone.py b/gone.py\n--- a/gone.py\n+++ /dev/null\n@@ -1,1 +0,0 @@\n-x\n"
         self.assertEqual(parse_unified_diff(diff), {})
 
+    def test_added_line_starting_with_plus_plus_b_is_content(self) -> None:
+        diff = (
+            "diff --git a/app.py b/app.py\n"
+            "--- a/app.py\n"
+            "+++ b/app.py\n"
+            "@@ -1,1 +1,2 @@\n"
+            " def main():\n"
+            "+++ b/evil.py\n"
+        )
+        self.assertEqual(parse_unified_diff(diff), {"app.py": ((2, 2),)})
+
 
 class ClassifyFindingTests(unittest.TestCase):
     def setUp(self) -> None:
