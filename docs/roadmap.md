@@ -80,7 +80,7 @@
 - `.github/workflows/security-scan.yml` 与 PR 报告摘要示例。
 - 自动化运行说明。
 
-当前状态：第一切片已完成本地统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON/Markdown 渲染和成对写入回滚。该切片只读取 Phase 3 的本地产物，不调用 DeepSeek、不访问 GitHub，也不提交 `artifacts/`。Excel、DOCX、PDF、Agent 分析和自动化仍待后续切片实现。
+当前状态：本地报告切片已完成统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON、Markdown、Excel、DOCX、PDF 渲染，以及任意选中报告组的写入回滚。真实三扫描器产物已经完成结构与视觉验证。报告流程不调用 DeepSeek、不访问 GitHub，也不提交 `artifacts/`；Agent 分析、示例报告、GitHub 自动化和风险阈值策略仍待后续切片实现。
 
 ## 后续增强
 
