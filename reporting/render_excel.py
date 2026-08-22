@@ -49,6 +49,7 @@ def render_excel(report: SecurityReport) -> bytes:
     summary.merge_cells("A1:B1")
     summary["A1"].font = Font(name="Arial", bold=True, size=16, color="FFFFFF")
     summary["A1"].fill = _HEADER_FILL
+    summary.row_dimensions[1].height = 28
     _style_header(summary, 5)
     summary.column_dimensions["A"].width = 24
     summary.column_dimensions["B"].width = 32

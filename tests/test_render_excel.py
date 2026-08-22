@@ -29,6 +29,7 @@ class ExcelRendererTests(unittest.TestCase):
         self.assertEqual(workbook.sheetnames, ["Summary", "Sources", "Findings"])
         self.assertEqual(workbook["Summary"]["B3"].value, 1)
         self.assertTrue(workbook["Summary"]["A1"].font.bold)
+        self.assertGreaterEqual(workbook["Summary"].row_dimensions[1].height or 0, 24)
         self.assertEqual(workbook["Sources"]["A2"].value, "semgrep")
         self.assertEqual(workbook["Findings"]["A2"].value, "id")
         self.assertEqual(workbook["Findings"]["G2"].value, "Avoid exec.")
