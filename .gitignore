@@ -12,3 +12,6 @@ pr_agent/settings/.secrets.toml
 
 # Local PR-Agent output
 /*.log
+
+# Local static-analysis artifacts
+/artifacts/
