@@ -81,11 +81,19 @@ def render_analysis_markdown(report: SecurityReport, analysis: AnalysisDocument)
         if analysis_item:
             lines += [
                 "",
+                f"- Changed: {analysis_item.get('diff_status', 'unknown')}",
                 f"- Cause: {analysis_item['cause']}",
                 f"- Impact: {analysis_item['impact']}",
                 f"- Remediation: {analysis_item['remediation']}",
             ]
             if analysis_item.get("references"):
                 lines.append(f"- References: {', '.join(analysis_item['references'])}")
+            evidence = analysis_item.get("evidence")
+            if evidence:
+                lines.append(
+                    f"- Evidence: {evidence.get('path')}:{evidence.get('start_line')}-{evidence.get('end_line')} "
+                    f"sha256={str(evidence.get('sha256', ''))[:8]}"
+                    + (" (truncated)" if evidence.get("truncated") else "")
+                )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"

@@ -29,6 +29,30 @@ class AnalysisItemTests(unittest.TestCase):
         self.assertEqual(value["label"], "confirmed")
         self.assertEqual(value["references"], ["CWE-78"])
 
+    def test_diff_status_defaults_to_unknown(self) -> None:
+        self.assertEqual(item().diff_status, "unknown")
+        self.assertEqual(item().to_dict()["diff_status"], "unknown")
+
+    def test_rejects_unknown_diff_status(self) -> None:
+        with self.assertRaises(AnalysisFormatError):
+            AnalysisItem(
+                finding_id="f", label="confirmed", title="", cause="",
+                impact="", remediation="", references=(), diff_status="new",
+            )
+
+    def test_to_dict_includes_evidence_when_present(self) -> None:
+        evidence = {"path": "app.py", "start_line": 1, "end_line": 3}
+        value = AnalysisItem(
+            finding_id="f", label="confirmed", title="", cause="",
+            impact="", remediation="", references=(),
+            diff_status="changed", evidence=evidence,
+        ).to_dict()
+        self.assertEqual(value["diff_status"], "changed")
+        self.assertEqual(value["evidence"], evidence)
+
+    def test_to_dict_omits_evidence_when_none(self) -> None:
+        self.assertNotIn("evidence", item().to_dict())
+
 
 class AnalysisDocumentTests(unittest.TestCase):
     def test_create_and_to_dict(self) -> None:
@@ -58,6 +82,30 @@ class AnalysisDocumentTests(unittest.TestCase):
         payload = {"schema_version": "1.0", "items": [{"label": "confirmed"}]}
         with self.assertRaises(AnalysisFormatError):
             AnalysisDocument.from_dict(payload)
+
+    def test_from_dict_accepts_legacy_item_without_new_fields(self) -> None:
+        payload = {
+            "schema_version": "1.0",
+            "items": [{"finding_id": "f", "label": "confirmed"}],
+        }
+        document = AnalysisDocument.from_dict(payload)
+        self.assertEqual(document.items[0].diff_status, "unknown")
+        self.assertIsNone(document.items[0].evidence)
+
+    def test_from_dict_roundtrip_with_evidence(self) -> None:
+        original = AnalysisDocument.create(
+            "deterministic",
+            [
+                AnalysisItem(
+                    finding_id="f", label="confirmed", title="", cause="",
+                    impact="", remediation="", references=(),
+                    diff_status="changed", evidence={"path": "app.py"},
+                )
+            ],
+        )
+        restored = AnalysisDocument.from_dict(original.to_dict())
+        self.assertEqual(restored.items[0].diff_status, "changed")
+        self.assertEqual(restored.items[0].evidence, {"path": "app.py"})
 
 
 if __name__ == "__main__":

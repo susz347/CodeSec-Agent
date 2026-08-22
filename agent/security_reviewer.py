@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, Protocol, Sequence
+from typing import Any, Mapping, Protocol, Sequence
 
 from agent.knowledge import HIGH_CONFIDENCE, lookup, signature
 from agent.models import AnalysisDocument, AnalysisFormatError, AnalysisItem
@@ -73,7 +73,13 @@ class ReviewerBackend(Protocol):
 
     backend_name: str
 
-    def analyze(self, findings: Sequence[dict[str, Any]]) -> AnalysisDocument: ...
+    def analyze(
+        self,
+        findings: Sequence[dict[str, Any]],
+        *,
+        diff_statuses: Mapping[str, str] | None = None,
+        evidence: Mapping[str, dict[str, Any]] | None = None,
+    ) -> AnalysisDocument: ...
 
 
 class DeterministicReviewer:
@@ -81,11 +87,28 @@ class DeterministicReviewer:
 
     backend_name = "deterministic"
 
-    def analyze(self, findings: Sequence[dict[str, Any]]) -> AnalysisDocument:
-        items = [self._analyze_finding(finding) for finding in findings]
+    def analyze(
+        self,
+        findings: Sequence[dict[str, Any]],
+        *,
+        diff_statuses: Mapping[str, str] | None = None,
+        evidence: Mapping[str, dict[str, Any]] | None = None,
+    ) -> AnalysisDocument:
+        diff_statuses = diff_statuses or {}
+        evidence = evidence or {}
+        items = [
+            self._analyze_finding(
+                finding,
+                diff_status=diff_statuses.get(str(finding["id"]), "unknown"),
+                evidence=evidence.get(str(finding["id"])),
+            )
+            for finding in findings
+        ]
         return AnalysisDocument.create(self.backend_name, items)
 
-    def _analyze_finding(self, finding: dict[str, Any]) -> AnalysisItem:
+    def _analyze_finding(
+        self, finding: dict[str, Any], *, diff_status: str, evidence: dict[str, Any] | None
+    ) -> AnalysisItem:
         knowledge = lookup(finding)
         return AnalysisItem(
             finding_id=str(finding["id"]),
@@ -95,6 +118,8 @@ class DeterministicReviewer:
             impact=knowledge.impact,
             remediation=knowledge.remediation,
             references=_references(knowledge),
+            diff_status=diff_status,
+            evidence=evidence,
         )
 
 
@@ -106,7 +131,13 @@ class LlmReviewer:
 
     backend_name = "deepseek"
 
-    def analyze(self, findings: Sequence[dict[str, Any]]) -> AnalysisDocument:
+    def analyze(
+        self,
+        findings: Sequence[dict[str, Any]],
+        *,
+        diff_statuses: Mapping[str, str] | None = None,
+        evidence: Mapping[str, dict[str, Any]] | None = None,
+    ) -> AnalysisDocument:
         raise NotImplementedError(
             "LlmReviewer requires an authorized DeepSeek integration; "
             "use DeterministicReviewer for offline analysis."
@@ -114,11 +145,19 @@ class LlmReviewer:
 
 
 def analyze(
-    document: dict[str, Any], backend: ReviewerBackend | None = None
+    document: dict[str, Any],
+    backend: ReviewerBackend | None = None,
+    *,
+    diff_statuses: Mapping[str, str] | None = None,
+    evidence: Mapping[str, dict[str, Any]] | None = None,
 ) -> AnalysisDocument:
     """Analyze a normalized finding document (schema 1.0) into an analysis document."""
     findings = document.get("findings")
     if not isinstance(findings, list):
         raise AnalysisFormatError("Expected an array at /findings")
     reviewer = backend or DeterministicReviewer()
-    return reviewer.analyze([item for item in findings if isinstance(item, dict)])
+    return reviewer.analyze(
+        [item for item in findings if isinstance(item, dict)],
+        diff_statuses=diff_statuses,
+        evidence=evidence,
+    )

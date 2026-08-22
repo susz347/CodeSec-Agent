@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 LABELS = ("confirmed", "suspicious", "possible_false_positive")
+DIFF_STATUSES = ("changed", "unchanged", "unknown")
 
 
 class AnalysisFormatError(ValueError):
@@ -24,13 +25,17 @@ class AnalysisItem:
     impact: str
     remediation: str
     references: tuple[str, ...]
+    diff_status: str = "unknown"
+    evidence: dict[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.label not in LABELS:
             raise AnalysisFormatError(f"Unknown analysis label: {self.label}")
+        if self.diff_status not in DIFF_STATUSES:
+            raise AnalysisFormatError(f"Unknown diff status: {self.diff_status}")
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "finding_id": self.finding_id,
             "label": self.label,
             "title": self.title,
@@ -38,7 +43,11 @@ class AnalysisItem:
             "impact": self.impact,
             "remediation": self.remediation,
             "references": list(self.references),
+            "diff_status": self.diff_status,
         }
+        if self.evidence is not None:
+            value["evidence"] = self.evidence
+        return value
 
 
 @dataclass(frozen=True)
@@ -79,6 +88,7 @@ class AnalysisDocument:
             if not isinstance(item, dict):
                 raise AnalysisFormatError(f"Expected an object at /items/{index}")
             try:
+                evidence = item.get("evidence")
                 items.append(
                     AnalysisItem(
                         finding_id=item["finding_id"],
@@ -88,6 +98,8 @@ class AnalysisDocument:
                         impact=item.get("impact", ""),
                         remediation=item.get("remediation", ""),
                         references=tuple(str(r) for r in item.get("references", [])),
+                        diff_status=str(item.get("diff_status", "unknown")),
+                        evidence=evidence if isinstance(evidence, dict) else None,
                     )
                 )
             except KeyError as error:

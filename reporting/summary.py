@@ -21,9 +21,12 @@ def render_pr_summary(payload: dict[str, Any], artifacts_url: str = "") -> str:
     items = (payload.get("analysis") or {}).get("items", []) or []
 
     label_counts: dict[str, int] = {}
+    diff_counts: dict[str, int] = {}
     for item in items:
         label = str(item.get("label", "unanalyzed"))
         label_counts[label] = label_counts.get(label, 0) + 1
+        status = str(item.get("diff_status", "unknown"))
+        diff_counts[status] = diff_counts.get(status, 0) + 1
 
     rule_ids = sorted({str(f["rule_id"]) for f in findings if f.get("rule_id")})
     paths = sorted({str(f["path"]) for f in findings if f.get("path")})
@@ -42,6 +45,14 @@ def render_pr_summary(payload: dict[str, Any], artifacts_url: str = "") -> str:
         lines.append(
             "- Classification: "
             + ", ".join(f"{label}={label_counts.get(label, 0)}" for label in _LABELS)
+        )
+    if diff_counts.get("changed", 0) + diff_counts.get("unchanged", 0) > 0:
+        lines.append(
+            "- Diff: "
+            + ", ".join(
+                f"{status}={diff_counts.get(status, 0)}"
+                for status in ("changed", "unchanged", "unknown")
+            )
         )
     if rule_ids:
         lines.append("- Rules: " + ", ".join(f"`{rule}`" for rule in rule_ids))

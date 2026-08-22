@@ -106,6 +106,21 @@ class DeterministicReviewerTests(unittest.TestCase):
             [item.to_dict() for item in second.items],
         )
 
+    def test_defaults_diff_status_and_evidence(self) -> None:
+        item = self.reviewer.analyze([finding()]).items[0]
+        self.assertEqual(item.diff_status, "unknown")
+        self.assertIsNone(item.evidence)
+
+    def test_passes_diff_status_and_evidence(self) -> None:
+        document = self.reviewer.analyze(
+            [finding("a")],
+            diff_statuses={"a": "changed"},
+            evidence={"a": {"path": "app.py"}},
+        )
+        item = document.items[0]
+        self.assertEqual(item.diff_status, "changed")
+        self.assertEqual(item.evidence, {"path": "app.py"})
+
 
 class AnalyzeEntrypointTests(unittest.TestCase):
     def test_analyze_requires_findings_array(self) -> None:
@@ -115,6 +130,16 @@ class AnalyzeEntrypointTests(unittest.TestCase):
     def test_analyze_skips_non_dict_findings(self) -> None:
         document = analyze({"schema_version": "1.0", "findings": [finding(), "junk"]})
         self.assertEqual(len(document.items), 1)
+
+    def test_analyze_forwards_diff_status_and_evidence(self) -> None:
+        document = analyze(
+            {"schema_version": "1.0", "findings": [finding("a")]},
+            diff_statuses={"a": "unchanged"},
+            evidence={"a": {"path": "app.py", "start_line": 3}},
+        )
+        item = document.items[0]
+        self.assertEqual(item.diff_status, "unchanged")
+        self.assertEqual(item.evidence, {"path": "app.py", "start_line": 3})
 
 
 class LlmReviewerTests(unittest.TestCase):

@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from typing import Any, Sequence
 
+from agent.context import ContextError, read_context
+from agent.diff import classify_finding, parse_unified_diff
 from agent.models import AnalysisDocument, AnalysisFormatError
 from agent.security_reviewer import analyze
 
@@ -45,12 +47,20 @@ def render_analysis_markdown(document: AnalysisDocument) -> str:
             f"### [{item.label}] {item.title}",
             "",
             f"- Finding: `{item.finding_id}`",
+            f"- Changed: {item.diff_status}",
             f"- Cause: {item.cause}",
             f"- Impact: {item.impact}",
             f"- Remediation: {item.remediation}",
         ]
         if item.references:
             lines.append(f"- References: {', '.join(item.references)}")
+        if item.evidence:
+            evidence = item.evidence
+            lines.append(
+                f"- Evidence: {evidence.get('path')}:{evidence.get('start_line')}-{evidence.get('end_line')} "
+                f"sha256={str(evidence.get('sha256', ''))[:8]}"
+                + (" (truncated)" if evidence.get("truncated") else "")
+            )
         lines.append("")
     return "\n".join(lines).rstrip() + "\n"
 
@@ -73,10 +83,48 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Generate deterministic security analysis.")
     parser.add_argument("--input", action="append", required=True, type=Path)
     parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument("--repo-root", type=Path)
+    parser.add_argument("--diff", type=Path)
     arguments = parser.parse_args(argv)
     try:
         findings = _load_findings(arguments.input)
-        document = analyze({"schema_version": "1.0", "findings": findings})
+
+        diff_statuses: dict[str, str] = {}
+        if arguments.diff is not None:
+            try:
+                diff_text = arguments.diff.read_text(encoding="utf-8")
+            except OSError as error:
+                raise AnalysisFormatError(f"Cannot read diff: {arguments.diff}") from error
+            changed_ranges = parse_unified_diff(diff_text)
+            for finding in findings:
+                diff_statuses[str(finding["id"])] = classify_finding(
+                    str(finding.get("path", "")),
+                    int(finding.get("start_line", 1)),
+                    int(finding.get("end_line", finding.get("start_line", 1))),
+                    changed_ranges,
+                )
+
+        evidence: dict[str, dict[str, Any]] = {}
+        if arguments.repo_root is not None:
+            skipped = 0
+            for finding in findings:
+                try:
+                    evidence[str(finding["id"])] = read_context(
+                        finding, arguments.repo_root
+                    ).to_dict()
+                except ContextError:
+                    skipped += 1
+            if skipped:
+                print(
+                    f"Skipped context for {skipped} finding(s) (outside repo root or unreadable)",
+                    file=sys.stderr,
+                )
+
+        document = analyze(
+            {"schema_version": "1.0", "findings": findings},
+            diff_statuses=diff_statuses,
+            evidence=evidence,
+        )
         arguments.output_dir.mkdir(parents=True, exist_ok=True)
         json_output = arguments.output_dir / "analysis.json"
         markdown_output = arguments.output_dir / "analysis.md"

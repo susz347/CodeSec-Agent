@@ -50,6 +50,20 @@ class RenderPrSummaryTests(unittest.TestCase):
         text = render_pr_summary(_payload(), artifacts_url="https://example/run")
         self.assertIn("https://example/run", text)
 
+    def test_includes_diff_counts_when_changed_present(self) -> None:
+        payload = _payload()
+        payload["analysis"]["items"] = [
+            {"finding_id": "a", "label": "confirmed", "diff_status": "changed"},
+            {"finding_id": "b", "label": "suspicious", "diff_status": "unchanged"},
+        ]
+        text = render_pr_summary(payload)
+        self.assertIn("changed=1", text)
+        self.assertIn("unchanged=1", text)
+
+    def test_omits_diff_line_when_all_unknown(self) -> None:
+        text = render_pr_summary(_payload())
+        self.assertNotIn("- Diff:", text)
+
 
 if __name__ == "__main__":
     unittest.main()

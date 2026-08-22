@@ -62,6 +62,50 @@ class RenderAnalysisTests(unittest.TestCase):
         self.assertEqual(payload["findings"][0]["id"], "f1")
         self.assertEqual(payload["analysis"]["items"][0]["finding_id"], "f1")
 
+    def test_markdown_shows_diff_status_and_evidence(self) -> None:
+        analysis = AnalysisDocument.create(
+            "deterministic",
+            [
+                AnalysisItem(
+                    finding_id="f1",
+                    label="confirmed",
+                    title="title",
+                    cause="cause",
+                    impact="impact",
+                    remediation="remediation",
+                    references=(),
+                    diff_status="changed",
+                    evidence={"path": "app.py", "start_line": 1, "end_line": 3, "sha256": "abcdef1234567890", "truncated": False},
+                )
+            ],
+        )
+        text = render_analysis_markdown(_report(), analysis)
+        self.assertIn("Changed: changed", text)
+        self.assertIn("Evidence: app.py:1-3", text)
+        self.assertIn("sha256=abcdef12", text)
+
+    def test_json_includes_diff_status_and_evidence(self) -> None:
+        analysis = AnalysisDocument.create(
+            "deterministic",
+            [
+                AnalysisItem(
+                    finding_id="f1",
+                    label="confirmed",
+                    title="title",
+                    cause="cause",
+                    impact="impact",
+                    remediation="remediation",
+                    references=(),
+                    diff_status="changed",
+                    evidence={"path": "app.py", "start_line": 1},
+                )
+            ],
+        )
+        payload = json.loads(render_analysis_json(_report(), analysis))
+        item = payload["analysis"]["items"][0]
+        self.assertEqual(item["diff_status"], "changed")
+        self.assertEqual(item["evidence"], {"path": "app.py", "start_line": 1})
+
 
 class LoadDocumentsIntegrationTests(unittest.TestCase):
     def test_analysis_references_real_finding_id(self) -> None:
