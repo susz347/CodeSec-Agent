@@ -27,8 +27,8 @@
 ## Phase 3：静态安全扫描与结果归一化
 
 - [x] 安装锁定版本并完成一次真实 Semgrep 扫描验证。
-- [ ] 运行 Bandit 扫描 Python 代码。
-- [ ] 运行 npm audit 扫描 Node.js 依赖。
+- [x] 运行 Bandit 扫描 Python 代码。
+- [x] 运行 npm audit 扫描 Node.js 依赖。
 - [x] 实现 Semgrep 原始 JSON 保存与离线归一化。
 - [x] 设计统一 finding 数据结构，并统一风险等级、文件位置、规则 ID 和证据字段。
 

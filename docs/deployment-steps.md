@@ -7,7 +7,7 @@
 3. **Phase 3：静态安全扫描与结果归一化**（Semgrep-first 切片已完成验证）。
 4. **Phase 4：Agent 分析、报告与自动化**（待开发）。
 
-完整研发阶段、任务与交付物统一见 [项目路线图](roadmap.md)。Bandit 与 npm audit 仍未接入，后续将作为独立适配器实施。
+完整研发阶段、任务与交付物统一见 [项目路线图](roadmap.md)。Phase 3 的 Semgrep、Bandit 与 npm audit 已作为独立适配器完成本地验证。
 
 ## 版本与安全边界
 
@@ -239,7 +239,7 @@ Phase 3 首版只运行 Semgrep。它使用固定的 `1.163.0` 版本和 `p/secu
 Get-Content -LiteralPath 'artifacts\findings.json' -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 8
 ```
 
-如尚未创建 `.venv`，先用可用 Python 3.12+ 创建它。不要提交 `artifacts/`；其中的产物仅供本地验证或后续受控的自动化流程使用。Bandit 与 npm audit 仍待后续独立实施。
+如尚未创建 `.venv`，先用可用 Python 3.12+ 创建它。Bandit 使用固定的 `1.9.4` 版本；npm audit 要求目标含 `package-lock.json`，并以 `--package-lock-only --ignore-scripts` 运行，不安装或执行依赖脚本。不要提交 `artifacts/`；其中的产物仅供本地验证或后续受控的自动化流程使用。
 
 ## 故障排查
 

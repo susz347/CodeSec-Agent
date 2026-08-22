@@ -55,7 +55,7 @@
 - Semgrep 扫描执行器与解析模块。
 - 统一 finding 数据结构说明与示例输出。
 
-当前边界：Phase 3 首版不调用 DeepSeek、不写 PR 评论、不阻断合并；`artifacts/` 中的本地扫描产物不提交到 Git。
+当前状态：Semgrep、Bandit 和 npm audit 已完成本地验证与统一归一化。Phase 3 不调用 DeepSeek、不写 PR 评论、不阻断合并；`artifacts/` 中的本地扫描产物不提交到 Git。
 
 ## Phase 4: Agent 分析、报告与自动化
 
