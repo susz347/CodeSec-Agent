@@ -75,12 +75,13 @@
 交付物：
 
 - 安全分析输出与改进后的 Prompt。
+- 确定性分析模块（`agent/`）与本地 CWE/OWASP 知识库。
 - JSON/Markdown 报告生成模块、示例报告和字段说明。
 - Excel、DOCX 和 PDF 报告导出模块。
 - `.github/workflows/security-scan.yml` 与 PR 报告摘要示例。
 - 自动化运行说明。
 
-当前状态：本地报告切片已完成统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON、Markdown、Excel、DOCX、PDF 渲染，以及任意选中报告组的写入回滚。真实三扫描器产物已经完成结构与视觉验证。报告流程不调用 DeepSeek、不访问 GitHub，也不提交 `artifacts/`；Agent 分析、示例报告、GitHub 自动化和风险阈值策略仍待后续切片实现。
+当前状态：本地报告切片已完成统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON、Markdown、Excel、DOCX、PDF 渲染，以及任意选中报告组的写入回滚。确定性分析 Agent（`agent/`）已完成确认/可疑/误报分类、本地 CWE/OWASP 知识库、修复建议与增强报告，并生成完整示例报告 `examples/security-report.md`。`.github/workflows/security-scan.yml` 与 `reporting.summary` 已就绪，默认只提示、不阻断。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权。
 
 ## 后续增强
 

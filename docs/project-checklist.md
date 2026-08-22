@@ -35,16 +35,16 @@
 ## Phase 4：Agent 分析、报告与自动化
 
 - [x] 创建初始安全审查 Prompt。
-- [ ] 将统一 finding 和相关代码片段传入分析流程。
-- [ ] 区分确认问题、可疑模式和误报。
-- [ ] 生成漏洞原因、影响、修复建议和 CWE/OWASP 参考。
+- [x] 将统一 finding 和相关代码片段传入分析流程（确定性 Agent，`agent/`）。
+- [x] 区分确认问题、可疑模式和误报。
+- [x] 生成漏洞原因、影响、修复建议和 CWE/OWASP 参考（本地知识库）。
 - [x] 合并 schema 1.0 finding 文档并生成本地 JSON/Markdown 报告、扫描摘要、风险统计和发现项明细。
 - [x] 验证任意选中报告组写入失败时不会留下半套新结果。
 - [x] 基于统一报告模型增加 Excel、DOCX 和 PDF 导出，并完成结构与视觉验证。
-- [ ] 保存完整示例报告。
-- [ ] 添加安全扫描 GitHub Action 并保存结果产物。
-- [ ] 在 PR 评论中引用报告摘要。
-- [ ] 定义风险阈值与合并提示/阻断策略。
+- [x] 保存完整示例报告（`examples/security-report.md`）。
+- [x] 添加安全扫描 GitHub Action 并保存结果产物（`.github/workflows/security-scan.yml`）。
+- [x] 在 PR 评论中引用报告摘要（`reporting.summary`）。
+- [x] 定义风险阈值与合并提示策略（仅提示；合并阻断留待授权）。
 
 ## 文档与发布
 
