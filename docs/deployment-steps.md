@@ -315,6 +315,30 @@ git diff main...HEAD > pr.diff   # 或任意 unified diff
 
 上述「扫描 → 分析 → 增强报告 → 产物上传 → PR 摘要」流程已固化为 [`.github/workflows/security-scan.yml`](../.github/workflows/security-scan.yml)，与 `pr-agent.yml` 一致跳过 Fork 与 Bot、仅用 `contents: read` 加 `pull-requests: write`，且扫描发现本身永不 fail 作业。PR 运行会用 GitHub 提供的 base/head SHA 生成内部 diff，并将 `--repo-root .` 和 `--diff` 传给分析 CLI，因此报告会附带局部代码证据与 `changed` / `unchanged` / `unknown` 标记；手动触发不比较提交，保留 `unknown`。独立的 [`.github/workflows/test.yml`](../.github/workflows/test.yml) 在 PR 与手动触发时运行完整单测。合并阻断策略、真实 DeepSeek 调用与分支推送留待单独授权。
 
+### Baseline 与人工处置
+
+`.codesec\triage.json` 是可审查、无源码的本地基线与人工处置记录。先从一份归一化 finding 文档创建或更新基线：
+
+```powershell
+.\.venv\Scripts\python.exe -m agent.triage_cli baseline `
+  --input artifacts\findings.json `
+  --store .codesec\triage.json
+```
+
+使用输出的 fingerprint 记录人工结论，再查看规则级统计：
+
+```powershell
+.\.venv\Scripts\python.exe -m agent.triage_cli disposition `
+  --store .codesec\triage.json `
+  --fingerprint <fingerprint> `
+  --resolution false_positive `
+  --reviewer <reviewer> `
+  --machine-label confirmed
+.\.venv\Scripts\python.exe -m agent.triage_cli stats --store .codesec\triage.json
+```
+
+支持 `true_positive`、`false_positive`、`accepted_risk` 与 `needs_fix`。首版仅建立基线、处置和统计，不调用 DeepSeek、不上传处置数据，也不自动阻断合并。
+
 ## 故障排查
 
 | 现象 | 处理方式 |
