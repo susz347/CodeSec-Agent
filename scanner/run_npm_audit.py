@@ -43,7 +43,7 @@ def run_scan(target: Path, artifacts: Path) -> Path:
         payload = json.loads(result.stdout)
         document = normalize_npm_audit(payload, version.stdout.strip(), target.as_posix())
     except (json.JSONDecodeError, NpmAuditFormatError) as error:
-        raise NpmAuditRunError("npm audit did not produce valid JSON.") from error
+        raise NpmAuditRunError(f"npm audit output could not be normalized: {error}") from error
     raw.write_text(result.stdout, encoding="utf-8")
     findings.write_text(json.dumps(document.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return findings

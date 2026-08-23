@@ -79,7 +79,7 @@ def run_scan(target: Path, artifacts: Path) -> Path:
         raise SemgrepRunError("semgrep-result.json is not valid JSON") from error
 
     try:
-        document = normalize_semgrep(payload, SEMGREP_VERSION, target.as_posix())
+        document = normalize_semgrep(payload, payload.get("version", SEMGREP_VERSION), target.as_posix())
     except SemgrepFormatError as error:
         raise SemgrepRunError(str(error)) from error
 
