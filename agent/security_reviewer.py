@@ -79,6 +79,7 @@ class ReviewerBackend(Protocol):
         findings: Sequence[dict[str, Any]],
         *,
         diff_statuses: Mapping[str, str] | None = None,
+        baseline_statuses: Mapping[str, str] | None = None,
         evidence: Mapping[str, dict[str, Any]] | None = None,
     ) -> AnalysisDocument: ...
 
@@ -93,14 +94,17 @@ class DeterministicReviewer:
         findings: Sequence[dict[str, Any]],
         *,
         diff_statuses: Mapping[str, str] | None = None,
+        baseline_statuses: Mapping[str, str] | None = None,
         evidence: Mapping[str, dict[str, Any]] | None = None,
     ) -> AnalysisDocument:
         diff_statuses = diff_statuses or {}
+        baseline_statuses = baseline_statuses or {}
         evidence = evidence or {}
         items = [
             self._analyze_finding(
                 finding,
                 diff_status=diff_statuses.get(str(finding["id"]), "unknown"),
+                baseline_status=baseline_statuses.get(str(finding["id"]), "unknown"),
                 evidence=evidence.get(str(finding["id"])),
             )
             for finding in findings
@@ -108,7 +112,12 @@ class DeterministicReviewer:
         return AnalysisDocument.create(self.backend_name, items)
 
     def _analyze_finding(
-        self, finding: dict[str, Any], *, diff_status: str, evidence: dict[str, Any] | None
+        self,
+        finding: dict[str, Any],
+        *,
+        diff_status: str,
+        baseline_status: str,
+        evidence: dict[str, Any] | None,
     ) -> AnalysisItem:
         knowledge = lookup(finding)
         return AnalysisItem(
@@ -120,6 +129,7 @@ class DeterministicReviewer:
             remediation=knowledge.remediation,
             references=_references(knowledge),
             diff_status=diff_status,
+            baseline_status=baseline_status,
             evidence=evidence,
         )
 
@@ -142,6 +152,7 @@ class LlmReviewer:
         findings: Sequence[dict[str, Any]],
         *,
         diff_statuses: Mapping[str, str] | None = None,
+        baseline_statuses: Mapping[str, str] | None = None,
         evidence: Mapping[str, dict[str, Any]] | None = None,
     ) -> AnalysisDocument:
         if self._client is None:
@@ -149,6 +160,7 @@ class LlmReviewer:
                 "LlmReviewer requires an LlmClient; no real DeepSeek call is wired."
             )
         diff_statuses = diff_statuses or {}
+        baseline_statuses = baseline_statuses or {}
         evidence = evidence or {}
         payload = self._client.complete(build_llm_request(findings, evidence))
         verdicts = parse_llm_response(payload, findings, evidence)
@@ -159,6 +171,7 @@ class LlmReviewer:
                 finding,
                 verdict_by_id.get(str(finding["id"])),
                 diff_statuses.get(str(finding["id"]), "unknown"),
+                baseline_statuses.get(str(finding["id"]), "unknown"),
                 evidence.get(str(finding["id"])),
                 fallback,
             )
@@ -171,12 +184,16 @@ class LlmReviewer:
         finding: dict[str, Any],
         verdict: Any,
         diff_status: str,
+        baseline_status: str,
         context: dict[str, Any] | None,
         fallback: DeterministicReviewer,
     ) -> AnalysisItem:
         if verdict is None:
             return fallback._analyze_finding(
-                finding, diff_status=diff_status, evidence=context
+                finding,
+                diff_status=diff_status,
+                baseline_status=baseline_status,
+                evidence=context,
             )
         return AnalysisItem(
             finding_id=str(finding["id"]),
@@ -187,6 +204,7 @@ class LlmReviewer:
             remediation=verdict.remediation,
             references=verdict.references,
             diff_status=diff_status,
+            baseline_status=baseline_status,
             evidence=context,
             evidence_refs=tuple(ref.to_dict() for ref in verdict.evidence_refs),
         )
@@ -197,6 +215,7 @@ def analyze(
     backend: ReviewerBackend | None = None,
     *,
     diff_statuses: Mapping[str, str] | None = None,
+    baseline_statuses: Mapping[str, str] | None = None,
     evidence: Mapping[str, dict[str, Any]] | None = None,
 ) -> AnalysisDocument:
     """Analyze a normalized finding document (schema 1.0) into an analysis document."""
@@ -207,5 +226,6 @@ def analyze(
     return reviewer.analyze(
         [item for item in findings if isinstance(item, dict)],
         diff_statuses=diff_statuses,
+        baseline_statuses=baseline_statuses,
         evidence=evidence,
     )

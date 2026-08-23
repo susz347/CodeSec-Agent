@@ -125,6 +125,7 @@ async function main() {
       children.push(
         labeled("Classification", analysis.label),
         labeled("Changed", analysis.diff_status || "unknown"),
+        labeled("Baseline", analysis.baseline_status || "unknown"),
       );
       if (analysis.title) children.push(labeled("Title", analysis.title));
       if (analysis.cause) children.push(labeled("Cause", analysis.cause));

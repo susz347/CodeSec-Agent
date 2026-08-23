@@ -22,6 +22,11 @@ class WorkflowTests(unittest.TestCase):
         workflow = _workflow("security-scan.yml")
         self.assertIn("if: github.event_name == 'pull_request'", workflow)
 
+    def test_security_scan_uses_versioned_triage_store_when_present(self) -> None:
+        workflow = _workflow("security-scan.yml")
+        self.assertIn(".codesec/triage.json", workflow)
+        self.assertIn("--triage-store .codesec/triage.json", workflow)
+
     def test_test_workflow_runs_complete_unittest_suite(self) -> None:
         workflow = _workflow("test.yml")
         self.assertIn("python-version: \"3.12\"", workflow)

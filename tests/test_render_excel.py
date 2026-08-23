@@ -66,9 +66,11 @@ class ExcelRendererTests(unittest.TestCase):
         sheet = workbook["Findings"]
         self.assertEqual(sheet["K1"].value, "Classification")
         self.assertEqual(sheet["L1"].value, "Diff Status")
+        self.assertEqual(sheet["M1"].value, "Baseline Status")
         self.assertEqual(sheet["K2"].value, "confirmed")
         self.assertEqual(sheet["L2"].value, "changed")
-        self.assertEqual(sheet["N2"].value, "cause")
+        self.assertEqual(sheet["N2"].value, "OS command injection")
+        self.assertEqual(sheet["O2"].value, "cause")
 
 
 if __name__ == "__main__":

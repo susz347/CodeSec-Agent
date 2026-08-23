@@ -12,6 +12,7 @@ from agent.context import ContextError, read_context
 from agent.diff import classify_finding, parse_unified_diff
 from agent.models import AnalysisDocument, AnalysisFormatError
 from agent.security_reviewer import analyze
+from agent.triage import TriageFormatError, compare_findings, load as load_triage
 
 
 def _load_findings(paths: Sequence[Path]) -> list[dict[str, Any]]:
@@ -48,6 +49,7 @@ def render_analysis_markdown(document: AnalysisDocument) -> str:
             "",
             f"- Finding: `{item.finding_id}`",
             f"- Changed: {item.diff_status}",
+            f"- Baseline: {item.baseline_status}",
             f"- Cause: {item.cause}",
             f"- Impact: {item.impact}",
             f"- Remediation: {item.remediation}",
@@ -85,6 +87,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--output-dir", required=True, type=Path)
     parser.add_argument("--repo-root", type=Path)
     parser.add_argument("--diff", type=Path)
+    parser.add_argument("--triage-store", type=Path)
     arguments = parser.parse_args(argv)
     try:
         findings = _load_findings(arguments.input)
@@ -120,9 +123,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                     file=sys.stderr,
                 )
 
+        baseline_statuses: dict[str, str] = {}
+        if arguments.triage_store is not None:
+            baseline_statuses = compare_findings(
+                findings, load_triage(arguments.triage_store)
+            ).status_by_id
+
         document = analyze(
             {"schema_version": "1.0", "findings": findings},
             diff_statuses=diff_statuses,
+            baseline_statuses=baseline_statuses,
             evidence=evidence,
         )
         arguments.output_dir.mkdir(parents=True, exist_ok=True)
@@ -134,7 +144,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 (markdown_output, render_analysis_markdown(document)),
             ]
         )
-    except (AnalysisFormatError, OSError) as error:
+    except (AnalysisFormatError, TriageFormatError, OSError) as error:
         print(error, file=sys.stderr)
         return 1
     print(json_output)

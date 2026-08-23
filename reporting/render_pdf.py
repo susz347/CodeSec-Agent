@@ -168,6 +168,7 @@ def render_pdf(report: SecurityReport, analysis: AnalysisDocument | None = None)
                     [
                         _paragraph(f"Classification: {analysis_item['label']}", body),
                         _paragraph(f"Changed: {analysis_item.get('diff_status', 'unknown')}", body),
+                        _paragraph(f"Baseline: {analysis_item.get('baseline_status', 'unknown')}", body),
                     ]
                 )
                 if analysis_item.get("title"):

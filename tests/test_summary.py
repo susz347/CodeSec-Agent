@@ -64,6 +64,30 @@ class RenderPrSummaryTests(unittest.TestCase):
         text = render_pr_summary(_payload())
         self.assertNotIn("- Diff:", text)
 
+    def test_focuses_rules_and_paths_on_new_baseline_findings(self) -> None:
+        payload = _payload()
+        payload["findings"] = [
+            {"id": "a", "rule_id": "NEW-RULE", "path": "new.py"},
+            {"id": "b", "rule_id": "OLD-RULE", "path": "old.py"},
+        ]
+        payload["analysis"]["items"] = [
+            {"finding_id": "a", "label": "confirmed", "baseline_status": "new"},
+            {"finding_id": "b", "label": "suspicious", "baseline_status": "existing"},
+        ]
+        text = render_pr_summary(payload)
+        self.assertIn("Baseline: new=1, existing=1, unknown=0", text)
+        self.assertIn("`NEW-RULE`", text)
+        self.assertNotIn("`OLD-RULE`", text)
+
+    def test_baseline_does_not_warn_for_existing_high_severity_finding(self) -> None:
+        payload = _payload()
+        payload["findings"] = [{"id": "a", "rule_id": "OLD-RULE", "path": "old.py", "severity": "error"}]
+        payload["analysis"]["items"] = [
+            {"finding_id": "a", "label": "confirmed", "baseline_status": "existing"}
+        ]
+        text = render_pr_summary(payload)
+        self.assertNotIn("recommend human review", text)
+
 
 if __name__ == "__main__":
     unittest.main()

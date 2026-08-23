@@ -25,6 +25,7 @@ _SEVERITY_FILLS = {
 _ANALYSIS_HEADERS = (
     "Classification",
     "Diff Status",
+    "Baseline Status",
     "Title",
     "Cause",
     "Impact",
@@ -32,7 +33,7 @@ _ANALYSIS_HEADERS = (
     "References",
     "Evidence",
 )
-_ANALYSIS_WIDTHS = (16, 12, 24, 40, 40, 40, 24, 32)
+_ANALYSIS_WIDTHS = (16, 12, 16, 24, 40, 40, 40, 24, 32)
 
 
 def _style_header(sheet: Worksheet, row: int = 1) -> None:
@@ -68,6 +69,7 @@ def _analysis_row(item: dict[str, object], analysis_item: dict | None) -> list[o
     return [
         analysis_item.get("label", ""),
         analysis_item.get("diff_status", "unknown"),
+        analysis_item.get("baseline_status", "unknown"),
         analysis_item.get("title", ""),
         analysis_item.get("cause", ""),
         analysis_item.get("impact", ""),

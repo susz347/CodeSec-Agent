@@ -33,11 +33,22 @@ class AnalysisItemTests(unittest.TestCase):
         self.assertEqual(item().diff_status, "unknown")
         self.assertEqual(item().to_dict()["diff_status"], "unknown")
 
+    def test_baseline_status_defaults_to_unknown(self) -> None:
+        self.assertEqual(item().baseline_status, "unknown")
+        self.assertEqual(item().to_dict()["baseline_status"], "unknown")
+
     def test_rejects_unknown_diff_status(self) -> None:
         with self.assertRaises(AnalysisFormatError):
             AnalysisItem(
                 finding_id="f", label="confirmed", title="", cause="",
                 impact="", remediation="", references=(), diff_status="new",
+            )
+
+    def test_rejects_unknown_baseline_status(self) -> None:
+        with self.assertRaises(AnalysisFormatError):
+            AnalysisItem(
+                finding_id="f", label="confirmed", title="", cause="",
+                impact="", remediation="", references=(), baseline_status="old",
             )
 
     def test_to_dict_includes_evidence_when_present(self) -> None:
@@ -90,6 +101,7 @@ class AnalysisDocumentTests(unittest.TestCase):
         }
         document = AnalysisDocument.from_dict(payload)
         self.assertEqual(document.items[0].diff_status, "unknown")
+        self.assertEqual(document.items[0].baseline_status, "unknown")
         self.assertIsNone(document.items[0].evidence)
 
     def test_from_dict_roundtrip_with_evidence(self) -> None:

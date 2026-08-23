@@ -8,6 +8,7 @@ from typing import Any
 
 LABELS = ("confirmed", "suspicious", "possible_false_positive")
 DIFF_STATUSES = ("changed", "unchanged", "unknown")
+BASELINE_STATUSES = ("new", "existing", "unknown")
 
 
 class AnalysisFormatError(ValueError):
@@ -26,6 +27,7 @@ class AnalysisItem:
     remediation: str
     references: tuple[str, ...]
     diff_status: str = "unknown"
+    baseline_status: str = "unknown"
     evidence: dict[str, Any] | None = None
     evidence_refs: tuple[dict[str, Any], ...] = ()
 
@@ -34,6 +36,8 @@ class AnalysisItem:
             raise AnalysisFormatError(f"Unknown analysis label: {self.label}")
         if self.diff_status not in DIFF_STATUSES:
             raise AnalysisFormatError(f"Unknown diff status: {self.diff_status}")
+        if self.baseline_status not in BASELINE_STATUSES:
+            raise AnalysisFormatError(f"Unknown baseline status: {self.baseline_status}")
 
     def to_dict(self) -> dict[str, Any]:
         value = {
@@ -45,6 +49,7 @@ class AnalysisItem:
             "remediation": self.remediation,
             "references": list(self.references),
             "diff_status": self.diff_status,
+            "baseline_status": self.baseline_status,
             "evidence_refs": list(self.evidence_refs),
         }
         if self.evidence is not None:
@@ -101,6 +106,7 @@ class AnalysisDocument:
                         remediation=item.get("remediation", ""),
                         references=tuple(str(r) for r in item.get("references", [])),
                         diff_status=str(item.get("diff_status", "unknown")),
+                        baseline_status=str(item.get("baseline_status", "unknown")),
                         evidence=evidence if isinstance(evidence, dict) else None,
                         evidence_refs=tuple(
                             r for r in item.get("evidence_refs", []) if isinstance(r, dict)

@@ -59,22 +59,32 @@ jobs:
       - name: Analyze PR findings
         if: github.event_name == 'pull_request'
         run: |
+          TRIAGE_ARGS=""
+          if [ -f .codesec/triage.json ]; then
+            TRIAGE_ARGS="--triage-store .codesec/triage.json"
+          fi
           python -m agent.cli \
             --input artifacts/findings.json \
             --input artifacts/bandit-findings.json \
             --input artifacts/npm-audit-findings.json \
             --repo-root . \
             --diff artifacts/pr.diff \
+            $TRIAGE_ARGS \
             --output-dir artifacts
 
       - name: Analyze manually dispatched findings
         if: github.event_name == 'workflow_dispatch'
         run: |
+          TRIAGE_ARGS=""
+          if [ -f .codesec/triage.json ]; then
+            TRIAGE_ARGS="--triage-store .codesec/triage.json"
+          fi
           python -m agent.cli \
             --input artifacts/findings.json \
             --input artifacts/bandit-findings.json \
             --input artifacts/npm-audit-findings.json \
             --repo-root . \
+            $TRIAGE_ARGS \
             --output-dir artifacts
 
       - name: Render reports

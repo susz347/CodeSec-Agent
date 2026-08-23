@@ -100,6 +100,7 @@ def render_analysis_markdown(report: SecurityReport, analysis: AnalysisDocument)
             lines += [
                 "",
                 f"- Changed: {analysis_item.get('diff_status', 'unknown')}",
+                f"- Baseline: {analysis_item.get('baseline_status', 'unknown')}",
                 f"- Cause: {analysis_item['cause']}",
                 f"- Impact: {analysis_item['impact']}",
                 f"- Remediation: {analysis_item['remediation']}",

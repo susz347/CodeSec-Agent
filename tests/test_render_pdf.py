@@ -52,7 +52,7 @@ class PdfRendererTests(unittest.TestCase):
             [
                 AnalysisItem(
                     "id", "confirmed", "title", "cause", "impact", "remediation",
-                    ("CWE-78",), diff_status="changed",
+                    ("CWE-78",), diff_status="changed", baseline_status="new",
                 )
             ],
         )
@@ -60,7 +60,7 @@ class PdfRendererTests(unittest.TestCase):
         reader = PdfReader(BytesIO(render_pdf(report, analysis)))
         text = "\n".join(page.extract_text() or "" for page in reader.pages)
 
-        for value in ("Classification: confirmed", "Changed: changed", "Cause: cause", "CWE-78"):
+        for value in ("Classification: confirmed", "Changed: changed", "Baseline: new", "Cause: cause", "CWE-78"):
             self.assertIn(value, text)
 
 

@@ -292,7 +292,7 @@ git diff main...HEAD > pr.diff   # 或任意 unified diff
   --output-dir artifacts
 ```
 
-上下文读取只接受仓库相对路径，拒绝绝对路径、`..` 与符号链接逃逸，越界或不可读的 finding 只跳过该条证据、绝不读取根外文件。命令原子写出 `artifacts\analysis.json` 与 `artifacts\analysis.md`。传给 `reporting.cli` 的 `--analysis` 可选参数后，五种格式报告都会升级为增强版：每条 finding 附带分类、成因、影响、修复建议、参考、`diff_status` 与证据摘要，并按「分类 > diff > 严重度」的确定性优先级排序。不传 `--analysis` 时行为与前述五格式报告完全一致。报告组同批原子写出一份 `artifacts\manifest.json` 产物清单（文件名 + 字节数 + SHA-256），供校验完整性：
+上下文读取只接受仓库相对路径，拒绝绝对路径、`..` 与符号链接逃逸，越界或不可读的 finding 只跳过该条证据、绝不读取根外文件。可选 `--triage-store .codesec\triage.json` 会把 finding 标注为 `new` / `existing`；未提供基线时保持 `unknown`。命令原子写出 `artifacts\analysis.json` 与 `artifacts\analysis.md`。传给 `reporting.cli` 的 `--analysis` 可选参数后，五种格式报告都会升级为增强版：每条 finding 附带分类、成因、影响、修复建议、参考、`diff_status`、`baseline_status` 与证据摘要，并按「分类 > diff > 严重度」的确定性优先级排序。不传 `--analysis` 时行为与前述五格式报告完全一致。报告组同批原子写出一份 `artifacts\manifest.json` 产物清单（文件名 + 字节数 + SHA-256），供校验完整性：
 
 ```powershell
 .\.venv\Scripts\python.exe -m reporting.cli `
@@ -304,7 +304,7 @@ git diff main...HEAD > pr.diff   # 或任意 unified diff
   --format markdown
 ```
 
-`reporting.summary` 从增强 JSON 报告生成仅含 finding 总数、各级严重度计数、分类计数、rule_id 列表、path 列表与产物链接的紧凑摘要，绝不包含源码或凭据；`error>0` 时追加「建议人工复核」提示，但只是提示、不阻断：
+`reporting.summary` 从增强 JSON 报告生成仅含 finding 总数、各级严重度计数、分类计数、rule_id 列表、path 列表与产物链接的紧凑摘要，绝不包含源码或凭据；接入基线后会显示 `new` / `existing` 计数，并仅列出新增 finding 的规则与路径。`error>0` 时追加「建议人工复核」提示，但只是提示、不阻断：
 
 ```powershell
 .\.venv\Scripts\python.exe -m reporting.summary `
@@ -313,7 +313,7 @@ git diff main...HEAD > pr.diff   # 或任意 unified diff
   --output pr-summary.md
 ```
 
-上述「扫描 → 分析 → 增强报告 → 产物上传 → PR 摘要」流程已固化为 [`.github/workflows/security-scan.yml`](../.github/workflows/security-scan.yml)，与 `pr-agent.yml` 一致跳过 Fork 与 Bot、仅用 `contents: read` 加 `pull-requests: write`，且扫描发现本身永不 fail 作业。PR 运行会用 GitHub 提供的 base/head SHA 生成内部 diff，并将 `--repo-root .` 和 `--diff` 传给分析 CLI，因此报告会附带局部代码证据与 `changed` / `unchanged` / `unknown` 标记；手动触发不比较提交，保留 `unknown`。独立的 [`.github/workflows/test.yml`](../.github/workflows/test.yml) 在 PR 与手动触发时运行完整单测。合并阻断策略、真实 DeepSeek 调用与分支推送留待单独授权。
+上述「扫描 → 分析 → 增强报告 → 产物上传 → PR 摘要」流程已固化为 [`.github/workflows/security-scan.yml`](../.github/workflows/security-scan.yml)，与 `pr-agent.yml` 一致跳过 Fork 与 Bot、仅用 `contents: read` 加 `pull-requests: write`，且扫描发现本身永不 fail 作业。PR 运行会用 GitHub 提供的 base/head SHA 生成内部 diff，并将 `--repo-root .` 和 `--diff` 传给分析 CLI，因此报告会附带局部代码证据与 `changed` / `unchanged` / `unknown` 标记；仓库存在版本化 `.codesec/triage.json` 时，CI 也会自动传入 `--triage-store` 生成 `new` / `existing` 标记。手动触发不比较提交，保留 diff `unknown`。独立的 [`.github/workflows/test.yml`](../.github/workflows/test.yml) 在 PR 与手动触发时运行完整单测。合并阻断策略、真实 DeepSeek 调用与分支推送留待单独授权。
 
 ### Baseline 与人工处置
 
@@ -337,7 +337,7 @@ git diff main...HEAD > pr.diff   # 或任意 unified diff
 .\.venv\Scripts\python.exe -m agent.triage_cli stats --store .codesec\triage.json
 ```
 
-支持 `true_positive`、`false_positive`、`accepted_risk` 与 `needs_fix`。首版仅建立基线、处置和统计，不调用 DeepSeek、不上传处置数据，也不自动阻断合并。
+支持 `true_positive`、`false_positive`、`accepted_risk` 与 `needs_fix`。将同一文件作为分析 CLI 的 `--triage-store` 参数后，`analysis.json` 与所有增强报告会透出 `baseline_status`；PR 摘要专注新增项。该流程不调用 DeepSeek、不上传处置数据，也不自动阻断合并。
 
 ## 故障排查
 

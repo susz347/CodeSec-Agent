@@ -54,7 +54,7 @@ class DocxRendererTests(unittest.TestCase):
             [
                 AnalysisItem(
                     "id", "confirmed", "title", "cause", "impact", "remediation",
-                    ("CWE-78",), diff_status="changed",
+                    ("CWE-78",), diff_status="changed", baseline_status="new",
                 )
             ],
         )
@@ -63,7 +63,7 @@ class DocxRendererTests(unittest.TestCase):
 
         with ZipFile(BytesIO(payload)) as archive:
             document = archive.read("word/document.xml").decode("utf-8")
-        for text in ("Classification", "confirmed", "changed", "cause", "remediation", "CWE-78"):
+        for text in ("Classification", "confirmed", "changed", "Baseline", "new", "cause", "remediation", "CWE-78"):
             self.assertIn(text, document)
 
     def test_missing_node_package_returns_install_command(self) -> None:

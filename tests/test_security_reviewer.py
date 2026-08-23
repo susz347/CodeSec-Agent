@@ -121,6 +121,12 @@ class DeterministicReviewerTests(unittest.TestCase):
         self.assertEqual(item.diff_status, "changed")
         self.assertEqual(item.evidence, {"path": "app.py"})
 
+    def test_passes_baseline_status(self) -> None:
+        item = self.reviewer.analyze(
+            [finding("a")], baseline_statuses={"a": "new"}
+        ).items[0]
+        self.assertEqual(item.baseline_status, "new")
+
 
 class AnalyzeEntrypointTests(unittest.TestCase):
     def test_analyze_requires_findings_array(self) -> None:
@@ -140,6 +146,13 @@ class AnalyzeEntrypointTests(unittest.TestCase):
         item = document.items[0]
         self.assertEqual(item.diff_status, "unchanged")
         self.assertEqual(item.evidence, {"path": "app.py", "start_line": 3})
+
+    def test_analyze_forwards_baseline_status(self) -> None:
+        document = analyze(
+            {"schema_version": "1.0", "findings": [finding("a")]},
+            baseline_statuses={"a": "existing"},
+        )
+        self.assertEqual(document.items[0].baseline_status, "existing")
 
 
 class LlmReviewerTests(unittest.TestCase):

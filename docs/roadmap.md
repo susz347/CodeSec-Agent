@@ -81,15 +81,15 @@
 - `.github/workflows/security-scan.yml` 与 PR 报告摘要示例。
 - 自动化运行说明。
 
-当前状态：本地报告切片已完成统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON、Markdown、Excel、DOCX、PDF 渲染，以及任意选中报告组的写入回滚。确定性分析 Agent（`agent/`）已完成确认/可疑/误报分类、本地 CWE/OWASP 知识库、修复建议与增强报告，并生成完整示例报告 `examples/security-report.md`。分析层已扩展上下文证据（`agent/context.py`，安全路径约束 + 行/字节预算）与 PR diff 过滤（`agent/diff.py`，changed/unchanged/unknown），作为机器可验证的 `diff_status`/`evidence` 字段透出。全格式 analysis 已落地：`xlsx`/`docx`/`pdf` 同样渲染分类、成因、影响、修复建议、参考与证据摘要；`reporting/risk.py` 按「分类 > diff > 严重度」做确定性风险排序；`reporting/manifest.py` 输出带 SHA-256 的 `manifest.json` 产物清单，CI 上传固定 `retention-days: 30`。`.github/workflows/security-scan.yml` 与 `reporting.summary` 已就绪，默认只提示、不阻断。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权。
+当前状态：本地报告切片已完成统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON、Markdown、Excel、DOCX、PDF 渲染，以及任意选中报告组的写入回滚。确定性分析 Agent（`agent/`）已完成确认/可疑/误报分类、本地 CWE/OWASP 知识库、修复建议与增强报告，并生成完整示例报告 `examples/security-report.md`。分析层已扩展上下文证据（`agent/context.py`，安全路径约束 + 行/字节预算）、PR diff 过滤（`agent/diff.py`，changed/unchanged/unknown）和 versioned baseline 消费层（`.codesec/triage.json`，new/existing/unknown），作为机器可验证字段透出。全格式 analysis 已落地：`xlsx`/`docx`/`pdf` 同样渲染分类、成因、影响、修复建议、参考与证据摘要；`reporting/risk.py` 按「分类 > diff > 严重度」做确定性风险排序；`reporting/manifest.py` 输出带 SHA-256 的 `manifest.json` 产物清单，CI 上传固定 `retention-days: 30`。`.github/workflows/security-scan.yml` 与 `reporting.summary` 已就绪；若仓库有 triage 基线，PR 摘要只列新增项，默认只提示、不阻断。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权。
 
 ## 后续增强
 
 - 建立 OWASP/CWE 知识库。
 - 上下文证据（局部代码上下文）：已完成 `agent/context.py`，含安全路径约束、行/字节预算与结构化 `ContextEvidence`。
-- PR diff 过滤：已完成 `agent/diff.py` 的 changed/unchanged/unknown 标注；baseline 分类（new/existing）需基线数据与真值，留待后续。
+- PR diff 过滤：已完成 `agent/diff.py` 的 changed/unchanged/unknown 标注；baseline 分类已完成，`agent.cli --triage-store` 消费版本化 `.codesec/triage.json` 并输出 new/existing/unknown。
 - 全格式 analysis、风险排序与产物治理：已完成（`reporting/render_excel|docx|pdf` 透出分析、`reporting/risk.py` 确定性排序、`reporting/manifest.py` 产物清单）。风险*评分*（数值）仍需校准数据，后置。
-- baseline 与人工处置数据（#5）：已完成设计文档 `docs/superpowers/specs/2026-08-22-baseline-human-triage-design.md`，仅设计、未实现存储与统计。
+- baseline 与人工处置数据（#5）：已完成本地版本化存储、人工处置、规则级统计，以及分析/全格式报告/PR 摘要的基线状态消费；校准指标和风险评分仍待积累真实处置数据后实现。
 - 引入 RAG 检索增强。
 - 支持多语言仓库。
 - 增加误报过滤和风险评分。

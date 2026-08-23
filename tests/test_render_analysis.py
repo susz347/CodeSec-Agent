@@ -106,6 +106,19 @@ class RenderAnalysisTests(unittest.TestCase):
         self.assertEqual(item["diff_status"], "changed")
         self.assertEqual(item["evidence"], {"path": "app.py", "start_line": 1})
 
+    def test_markdown_includes_baseline_status(self) -> None:
+        analysis = AnalysisDocument.create(
+            "deterministic",
+            [
+                AnalysisItem(
+                    finding_id="f1", label="confirmed", title="title", cause="cause",
+                    impact="impact", remediation="remediation", references=(),
+                    baseline_status="new",
+                )
+            ],
+        )
+        self.assertIn("Baseline: new", render_analysis_markdown(_report(), analysis))
+
 
 class RiskOrderingRenderTests(unittest.TestCase):
     def _finding(self, identifier: str, severity: str) -> dict:
