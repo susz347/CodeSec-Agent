@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import json
 from io import BytesIO
-from string import ascii_uppercase
-
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
+from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.worksheet import Worksheet
 
 from agent.models import AnalysisDocument
@@ -152,8 +151,8 @@ def render_excel(report: SecurityReport, analysis: AnalysisDocument | None = Non
     _style_header(findings_sheet)
     findings_sheet.freeze_panes = "A2"
     findings_sheet.auto_filter.ref = findings_sheet.dimensions
-    for column, width in zip(ascii_uppercase, widths, strict=True):
-        findings_sheet.column_dimensions[column].width = width
+    for index, width in enumerate(widths, start=1):
+        findings_sheet.column_dimensions[get_column_letter(index)].width = width
 
     for sheet in workbook.worksheets:
         _style_body(sheet)

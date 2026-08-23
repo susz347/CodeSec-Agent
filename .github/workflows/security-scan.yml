@@ -17,6 +17,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -34,6 +37,16 @@ jobs:
           pip install -r requirements-dev.txt
           npm install --ignore-scripts
 
+      - name: Build PR diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p artifacts
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git diff --no-ext-diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- > artifacts/pr.diff
+
       - name: Run Semgrep
         run: python -m scanner.run_semgrep --target . --artifacts artifacts
 
@@ -43,12 +56,25 @@ jobs:
       - name: Run npm audit
         run: python -m scanner.run_npm_audit --target . --artifacts artifacts
 
-      - name: Analyze findings
+      - name: Analyze PR findings
+        if: github.event_name == 'pull_request'
         run: |
           python -m agent.cli \
             --input artifacts/findings.json \
             --input artifacts/bandit-findings.json \
             --input artifacts/npm-audit-findings.json \
+            --repo-root . \
+            --diff artifacts/pr.diff \
+            --output-dir artifacts
+
+      - name: Analyze manually dispatched findings
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          python -m agent.cli \
+            --input artifacts/findings.json \
+            --input artifacts/bandit-findings.json \
+            --input artifacts/npm-audit-findings.json \
+            --repo-root . \
             --output-dir artifacts
 
       - name: Render reports
