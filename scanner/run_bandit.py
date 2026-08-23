@@ -13,6 +13,9 @@ from typing import Sequence
 from scanner.normalize_bandit import BanditFormatError, normalize_bandit
 
 
+BANDIT_VERSION = "1.9.4"
+
+
 class BanditRunError(RuntimeError):
     """Raised when Bandit cannot produce normalized output."""
 
@@ -40,9 +43,9 @@ def run_scan(target: Path, artifacts: Path) -> Path:
         raise BanditRunError("Bandit did not create bandit-result.json")
     try:
         payload = json.loads(raw.read_text(encoding="utf-8"))
-        document = normalize_bandit(payload, "1.9.4", target.as_posix())
+        document = normalize_bandit(payload, BANDIT_VERSION, target.as_posix())
     except (OSError, json.JSONDecodeError, BanditFormatError) as error:
-        raise BanditRunError("bandit-result.json could not be normalized") from error
+        raise BanditRunError(f"bandit-result.json could not be normalized: {error}") from error
     findings.write_text(json.dumps(document.to_dict(), ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return findings
 

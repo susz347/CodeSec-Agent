@@ -77,42 +77,46 @@ CodeSec-Agent/
   .github/
     workflows/
       pr-agent.yml
+      security-scan.yml
   .gitignore
   .pr_agent.toml
   README.md
+  agent/
+    cli.py
+    context.py
+    diff.py
+    knowledge.py
+    llm.py
+    models.py
+    security_reviewer.py
+    prompts/security_review.md
   docs/
     beginner-guide.md
     deployment-steps.md
     prerequisites.md
     project-checklist.md
     roadmap.md
+    superpowers/specs/  superpowers/plans/
+  examples/
+    security-report.md
   prompts/
     security_review.md
+  reporting/
+    cli.py
+    load_findings.py
+    manifest.py
+    models.py
+    risk.py
+    render_analysis.py
+    render_json.py  render_markdown.py  render_excel.py
+    render_docx.py  render_docx.js  render_pdf.py
+    summary.py
+  scanner/
+    models.py
+    normalize_semgrep.py  normalize_bandit.py  normalize_npm_audit.py
+    run_semgrep.py  run_bandit.py  run_npm_audit.py
+  tests/
   push-to-github.ps1
-```
-
-计划中的实现模块：
-
-```text
-scanner/
-  run_semgrep.py
-  run_bandit.py
-  parse_results.py
-
-agent/
-  security_reviewer.py
-  prompts/
-    security_review.md
-    fix_suggestion.md
-
-knowledge/
-  owasp_top10.md
-  cwe_top25.md
-  secure_coding.md
-
-report/
-  generate_markdown.py
-  generate_docx.py
 ```
 
 ## 快速开始
@@ -139,12 +143,16 @@ Phase 1/2 的仓库配置和本地 CLI 安装已实施并通过静态验证，�
 
 ## 当前状态
 
-当前实现分支已包含 DeepSeek PR-Agent 的共享配置与 GitHub Actions workflow，本地 CLI 安装路径也已验证。下一步须由用户批准并合并启用 PR，再配置凭据，从更新后的 `main` 创建一次性验证 PR；验证后关闭该 PR 并清理分支与探针，再推进静态扫描和报告能力：
+Phase 1/2（PR-Agent 双入口）与 Phase 3（Semgrep/Bandit/npm audit 归一化）已完成。Phase 4 已完成本地多格式报告（JSON/Markdown/Excel/DOCX/PDF）、确定性分析 Agent（确认/可疑/误报分类、CWE/OWASP 知识库、修复建议）、完整示例报告与安全扫描 GitHub Action（默认只提示不阻断）。分析层已扩展上下文证据（安全路径约束 + 行/字节预算）与 PR diff 过滤（changed/unchanged/unknown），并落地全格式 analysis、确定性风险排序与带 SHA-256 的产物清单。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权：
 
 ```text
 PR-Agent 审查
-  + Semgrep/Bandit JSON 扫描
-  + Markdown 安全审计报告
+  + Semgrep/Bandit/npm audit 归一化
+  + 确定性安全分析 Agent
+  + 上下文证据 + PR diff 过滤
+  + 全格式 analysis + 风险排序 + 产物清单
+  + 多格式报告 + 完整示例报告
+  + 安全扫描 CI（仅提示，不阻断）
 ```
 
 ## 文档

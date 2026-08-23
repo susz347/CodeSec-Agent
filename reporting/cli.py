@@ -1,0 +1,162 @@
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+from typing import Sequence
+
+from agent.models import AnalysisDocument, AnalysisFormatError
+from reporting.errors import ReportRenderError
+from reporting.load_findings import ReportInputError, load_documents
+from reporting.manifest import render_manifest
+from reporting.models import SecurityReport
+from reporting.render_json import render_json
+from reporting.render_markdown import render_markdown
+
+_FORMAT_ORDER = ("json", "markdown", "xlsx", "docx", "pdf")
+_DEFAULT_FORMATS = ("json", "markdown")
+_SUFFIXES = {
+    "json": "json",
+    "markdown": "md",
+    "xlsx": "xlsx",
+    "docx": "docx",
+    "pdf": "pdf",
+}
+
+
+def _selected_formats(values: list[str] | None) -> tuple[str, ...]:
+    if not values:
+        return _DEFAULT_FORMATS
+    if "all" in values:
+        return _FORMAT_ORDER
+    return tuple(name for name in _FORMAT_ORDER if name in values)
+
+
+def _load_analysis(path: Path | None) -> AnalysisDocument | None:
+    if path is None:
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ReportInputError(f"Cannot read analysis document: {path}") from error
+    try:
+        return AnalysisDocument.from_dict(payload)
+    except AnalysisFormatError as error:
+        raise ReportInputError(str(error)) from error
+
+
+def _render_format(
+    report: SecurityReport, name: str, analysis: AnalysisDocument | None
+) -> bytes:
+    if name == "json":
+        if analysis is not None:
+            from reporting.render_analysis import render_analysis_json
+
+            return render_analysis_json(report, analysis).encode("utf-8")
+        return render_json(report).encode("utf-8")
+    if name == "markdown":
+        if analysis is not None:
+            from reporting.render_analysis import render_analysis_markdown
+
+            return render_analysis_markdown(report, analysis).encode("utf-8")
+        return render_markdown(report).encode("utf-8")
+    try:
+        if name == "xlsx":
+            from reporting.render_excel import render_excel
+
+            return render_excel(report, analysis)
+        if name == "docx":
+            from reporting.render_docx import render_docx
+
+            return render_docx(report, analysis)
+        if name == "pdf":
+            from reporting.render_pdf import render_pdf
+
+            return render_pdf(report, analysis)
+    except ModuleNotFoundError as error:
+        raise ReportRenderError(
+            f"{name} rendering dependencies are missing; "
+            "run: python -m pip install -r requirements-dev.txt"
+        ) from error
+    raise ReportRenderError(f"Unsupported report format: {name}")
+
+
+def _commit_outputs(pairs: Sequence[tuple[Path, Path]]) -> None:
+    backups: list[tuple[Path, Path]] = []
+    committed: list[Path] = []
+    try:
+        for _, output in pairs:
+            backup = output.with_name(f".{output.name}.bak")
+            backup.unlink(missing_ok=True)
+            if output.exists():
+                output.replace(backup)
+                backups.append((backup, output))
+        for temporary, output in pairs:
+            temporary.replace(output)
+            committed.append(output)
+    except OSError:
+        for output in committed:
+            output.unlink(missing_ok=True)
+        for backup, output in backups:
+            if backup.exists():
+                backup.replace(output)
+        raise
+    else:
+        for backup, _ in backups:
+            try:
+                backup.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Generate local security reports.")
+    parser.add_argument("--input", action="append", required=True, type=Path)
+    parser.add_argument("--output-dir", required=True, type=Path)
+    parser.add_argument(
+        "--format",
+        action="append",
+        choices=(*_FORMAT_ORDER, "all"),
+        dest="formats",
+    )
+    parser.add_argument("--analysis", type=Path)
+    arguments = parser.parse_args(argv)
+    try:
+        report = load_documents(arguments.input)
+        analysis = _load_analysis(arguments.analysis)
+        formats = _selected_formats(arguments.formats)
+        rendered = {
+            name: _render_format(report, name, analysis) for name in formats
+        }
+        arguments.output_dir.mkdir(parents=True, exist_ok=True)
+        pairs: list[tuple[Path, Path]] = []
+        try:
+            for name in formats:
+                suffix = _SUFFIXES[name]
+                output = arguments.output_dir / f"security-report.{suffix}"
+                temporary = arguments.output_dir / f".security-report.{suffix}.tmp"
+                pairs.append((temporary, output))
+                temporary.write_bytes(rendered[name])
+            manifest_name = "manifest.json"
+            manifest_data = render_manifest(
+                [(f"security-report.{_SUFFIXES[name]}", rendered[name]) for name in formats]
+            ).encode("utf-8")
+            manifest_output = arguments.output_dir / manifest_name
+            manifest_temporary = arguments.output_dir / f".{manifest_name}.tmp"
+            pairs.append((manifest_temporary, manifest_output))
+            manifest_temporary.write_bytes(manifest_data)
+            _commit_outputs(pairs)
+        finally:
+            for temporary, _ in pairs:
+                temporary.unlink(missing_ok=True)
+    except (ReportInputError, ReportRenderError, OSError) as error:
+        print(error, file=sys.stderr)
+        return 1
+    for _, output in pairs:
+        print(output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

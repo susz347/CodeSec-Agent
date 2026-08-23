@@ -66,7 +66,8 @@
 - 设计和迭代安全审查 Prompt。
 - 结合 finding、代码片段和安全参考生成漏洞解释。
 - 标注确认问题、可疑问题和可能误报。
-- 生成 Markdown 报告、风险汇总和发现项明细。
+- 合并多个 schema 1.0 finding 文档，生成 JSON/Markdown 报告、风险汇总和发现项明细。
+- 在统一报告模型稳定后，依次增加 Excel、DOCX 和 PDF 渲染器。
 - 加入修复建议、CWE/OWASP 参考和完整示例报告。
 - 添加安全扫描 GitHub Action，保存扫描结果与报告产物。
 - 在 PR 评论中输出摘要，并探索按风险阈值提示或阻断合并。
@@ -74,15 +75,22 @@
 交付物：
 
 - 安全分析输出与改进后的 Prompt。
-- Markdown 报告生成模块、示例报告和字段说明。
+- 确定性分析模块（`agent/`）与本地 CWE/OWASP 知识库。
+- JSON/Markdown 报告生成模块、示例报告和字段说明。
+- Excel、DOCX 和 PDF 报告导出模块。
 - `.github/workflows/security-scan.yml` 与 PR 报告摘要示例。
 - 自动化运行说明。
+
+当前状态：本地报告切片已完成统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON、Markdown、Excel、DOCX、PDF 渲染，以及任意选中报告组的写入回滚。确定性分析 Agent（`agent/`）已完成确认/可疑/误报分类、本地 CWE/OWASP 知识库、修复建议与增强报告，并生成完整示例报告 `examples/security-report.md`。分析层已扩展上下文证据（`agent/context.py`，安全路径约束 + 行/字节预算）、PR diff 过滤（`agent/diff.py`，changed/unchanged/unknown）和 versioned baseline 消费层（`.codesec/triage.json`，new/existing/unknown），作为机器可验证字段透出。全格式 analysis 已落地：`xlsx`/`docx`/`pdf` 同样渲染分类、成因、影响、修复建议、参考与证据摘要；`reporting/risk.py` 按「分类 > diff > 严重度」做确定性风险排序；`reporting/manifest.py` 输出带 SHA-256 的 `manifest.json` 产物清单，CI 上传固定 `retention-days: 30`。`.github/workflows/security-scan.yml` 与 `reporting.summary` 已就绪；若仓库有 triage 基线，PR 摘要只列新增项，默认只提示、不阻断。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权。
 
 ## 后续增强
 
 - 建立 OWASP/CWE 知识库。
+- 上下文证据（局部代码上下文）：已完成 `agent/context.py`，含安全路径约束、行/字节预算与结构化 `ContextEvidence`。
+- PR diff 过滤：已完成 `agent/diff.py` 的 changed/unchanged/unknown 标注；baseline 分类已完成，`agent.cli --triage-store` 消费版本化 `.codesec/triage.json` 并输出 new/existing/unknown。
+- 全格式 analysis、风险排序与产物治理：已完成（`reporting/render_excel|docx|pdf` 透出分析、`reporting/risk.py` 确定性排序、`reporting/manifest.py` 产物清单）。风险*评分*（数值）仍需校准数据，后置。
+- baseline 与人工处置数据（#5）：已完成本地版本化存储、人工处置、规则级统计，以及分析/全格式报告/PR 摘要的基线状态消费；校准指标和风险评分仍待积累真实处置数据后实现。
 - 引入 RAG 检索增强。
-- 支持 Word/PDF 报告导出。
 - 支持多语言仓库。
 - 增加误报过滤和风险评分。
 - 构建 Web 可视化界面。

@@ -1,0 +1,128 @@
+name: Security Scan
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  scan:
+    if: ${{ github.event_name != 'pull_request' || (github.event.sender.type != 'Bot' && github.event.pull_request.head.repo.full_name == github.repository) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+          npm install --ignore-scripts
+
+      - name: Build PR diff
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p artifacts
+          git fetch --no-tags --depth=1 origin "$BASE_SHA"
+          git diff --no-ext-diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- > artifacts/pr.diff
+
+      - name: Run Semgrep
+        run: python -m scanner.run_semgrep --target . --artifacts artifacts
+
+      - name: Run Bandit
+        run: python -m scanner.run_bandit --target . --artifacts artifacts
+
+      - name: Run npm audit
+        run: python -m scanner.run_npm_audit --target . --artifacts artifacts
+
+      - name: Analyze PR findings
+        if: github.event_name == 'pull_request'
+        run: |
+          TRIAGE_ARGS=""
+          if [ -f .codesec/triage.json ]; then
+            TRIAGE_ARGS="--triage-store .codesec/triage.json"
+          fi
+          python -m agent.cli \
+            --input artifacts/findings.json \
+            --input artifacts/bandit-findings.json \
+            --input artifacts/npm-audit-findings.json \
+            --repo-root . \
+            --diff artifacts/pr.diff \
+            $TRIAGE_ARGS \
+            --output-dir artifacts
+
+      - name: Analyze manually dispatched findings
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          TRIAGE_ARGS=""
+          if [ -f .codesec/triage.json ]; then
+            TRIAGE_ARGS="--triage-store .codesec/triage.json"
+          fi
+          python -m agent.cli \
+            --input artifacts/findings.json \
+            --input artifacts/bandit-findings.json \
+            --input artifacts/npm-audit-findings.json \
+            --repo-root . \
+            $TRIAGE_ARGS \
+            --output-dir artifacts
+
+      - name: Render reports
+        run: |
+          python -m reporting.cli \
+            --input artifacts/findings.json \
+            --input artifacts/bandit-findings.json \
+            --input artifacts/npm-audit-findings.json \
+            --analysis artifacts/analysis.json \
+            --format all \
+            --output-dir artifacts
+
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-reports
+          retention-days: 30
+          path: |
+            artifacts/findings.json
+            artifacts/bandit-findings.json
+            artifacts/npm-audit-findings.json
+            artifacts/analysis.json
+            artifacts/security-report.json
+            artifacts/security-report.md
+            artifacts/security-report.xlsx
+            artifacts/security-report.docx
+            artifacts/security-report.pdf
+            artifacts/manifest.json
+          if-no-files-found: ignore
+
+      - name: Post PR summary
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACTS_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python -m reporting.summary \
+            --report artifacts/security-report.json \
+            --artifacts-url "$ARTIFACTS_URL" \
+            --output pr-summary.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file pr-summary.md

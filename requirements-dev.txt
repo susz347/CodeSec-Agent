@@ -1,2 +1,5 @@
+-r requirements-reporting.txt
+
 semgrep==1.163.0
 bandit==1.9.4
+pypdf==6.10.0
