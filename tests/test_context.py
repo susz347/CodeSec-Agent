@@ -151,5 +151,53 @@ class CollectWindowTests(unittest.TestCase):
         self.assertEqual(selected, [])
 
 
+class SensitiveFileTests(unittest.TestCase):
+    def test_skips_dotenv(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / ".env").write_text("SECRET_KEY=value\nOTHER=1\n", encoding="utf-8")
+            with self.assertRaises(ContextError):
+                read_context(_finding(path=".env", start=1, end=1), root)
+
+    def test_skips_pem_extension(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "server.pem").write_text(
+                "-----BEGIN PRIVATE KEY-----\n-----END PRIVATE KEY-----\n", encoding="utf-8"
+            )
+            with self.assertRaises(ContextError):
+                read_context(_finding(path="server.pem", start=1, end=1), root)
+
+    def test_skips_nested_secrets_file(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "config").mkdir()
+            (root / "config" / "secrets.json").write_text('{"key": "value"}\n', encoding="utf-8")
+            with self.assertRaises(ContextError):
+                read_context(_finding(path="config/secrets.json", start=1, end=1), root)
+
+
+class LineNumberValidationTests(unittest.TestCase):
+    def test_none_start_line_raises_context_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "app.py").write_text("a\nb\n", encoding="utf-8")
+            with self.assertRaises(ContextError):
+                read_context(
+                    {"id": "f1", "path": "app.py", "start_line": None, "end_line": 1},
+                    root,
+                )
+
+    def test_non_integer_start_line_raises_context_error(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "app.py").write_text("a\nb\n", encoding="utf-8")
+            with self.assertRaises(ContextError):
+                read_context(
+                    {"id": "f1", "path": "app.py", "start_line": "abc", "end_line": 1},
+                    root,
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

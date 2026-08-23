@@ -11,6 +11,7 @@ reached, so it never slurps the whole file into memory. Callers catch
 
 from __future__ import annotations
 
+import fnmatch
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -19,6 +20,46 @@ from typing import Any, Iterable
 DEFAULT_LINES_BEFORE = 10
 DEFAULT_LINES_AFTER = 10
 DEFAULT_MAX_BYTES = 8192
+
+_SKIP_GLOBS = (
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+    "*.p12",
+    "*.pfx",
+    "id_rsa",
+    "id_rsa.*",
+    "id_ed25519",
+    "id_ed25519.*",
+    "secrets.*",
+    "credentials.*",
+    "*.secret",
+)
+
+
+def _is_sensitive_path(path: str) -> bool:
+    """Return True when a finding path points at a secret-bearing file.
+
+    Both the full path and its basename are matched so patterns like ``.env``
+    and ``id_rsa*`` are caught at any depth. Case handling follows the platform
+    via ``fnmatch.fnmatch`` (case-insensitive on Windows, case-sensitive on
+    POSIX).
+    """
+    normalized = path.replace("\\", "/")
+    name = normalized.rsplit("/", 1)[-1]
+    for glob in _SKIP_GLOBS:
+        if fnmatch.fnmatch(normalized, glob) or fnmatch.fnmatch(name, glob):
+            return True
+    return False
+
+
+def _coerce_line(value: Any) -> int:
+    """Coerce a finding line number to int, raising ContextError on invalid input."""
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise ContextError(f"Finding has a non-integer line number: {value!r}") from None
 
 
 class ContextError(Exception):
@@ -139,11 +180,13 @@ def read_context(
     candidate = (root / path).resolve()
     if not candidate.is_relative_to(root):
         raise PathEscapeError(f"Finding path escapes repository root: {path}")
+    if _is_sensitive_path(path):
+        raise ContextError(f"Refusing to read sensitive file: {path}")
     if not candidate.is_file():
         raise ContextError(f"Finding path is not a file: {path}")
 
-    start_line = int(finding.get("start_line", 1))
-    end_line = int(finding.get("end_line", start_line))
+    start_line = _coerce_line(finding.get("start_line", 1))
+    end_line = _coerce_line(finding.get("end_line", start_line))
     window_start = max(1, start_line - lines_before)
     window_end = end_line + lines_after
 
