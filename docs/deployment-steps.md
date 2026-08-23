@@ -313,7 +313,29 @@ git diff main...HEAD > pr.diff   # 或任意 unified diff
   --output pr-summary.md
 ```
 
-上述「扫描 → 分析 → 增强报告 → 产物上传 → PR 摘要」流程已固化为 [`.github/workflows/security-scan.yml`](../.github/workflows/security-scan.yml)，与 `pr-agent.yml` 一致跳过 Fork 与 Bot、仅用 `contents: read` 加 `pull-requests: write`，且扫描发现本身永不 fail 作业。PR 运行会用 GitHub 提供的 base/head SHA 生成内部 diff，并将 `--repo-root .` 和 `--diff` 传给分析 CLI，因此报告会附带局部代码证据与 `changed` / `unchanged` / `unknown` 标记；仓库存在版本化 `.codesec/triage.json` 时，CI 也会自动传入 `--triage-store` 生成 `new` / `existing` 标记。手动触发不比较提交，保留 diff `unknown`。独立的 [`.github/workflows/test.yml`](../.github/workflows/test.yml) 在 PR 与手动触发时运行完整单测。合并阻断策略、真实 DeepSeek 调用与分支推送留待单独授权。
+上述「扫描 → 分析 → 增强报告 → 产物上传 → PR 摘要」流程已固化为 [`.github/workflows/security-scan.yml`](../.github/workflows/security-scan.yml)，与 `pr-agent.yml` 一致跳过 Fork 与 Bot、仅用 `contents: read` 加 `pull-requests: write`，且扫描发现本身永不 fail 作业。PR 运行会用 GitHub 提供的 base/head SHA 生成内部 diff，并将 `--repo-root .` 和 `--diff` 传给分析 CLI，因此报告会附带局部代码证据与 `changed` / `unchanged` / `unknown` 标记；仓库存在版本化 `.codesec/triage.json` 时，CI 也会自动传入 `--triage-store` 生成 `new` / `existing` 标记。手动触发不比较提交，保留 diff `unknown`。独立的 [`.github/workflows/test.yml`](../.github/workflows/test.yml) 在 PR 与手动触发时运行完整单测。
+
+### Gated DeepSeek 分析
+
+默认后端始终是离线确定性分析。显式传入 `--backend deepseek` 且当前进程设置 `DEEPSEEK_API_KEY` 时，才会调用 DeepSeek；密钥仅从进程环境或 GitHub Actions Secret 读取，绝不写入文件、报告或日志。CI 仅在该 Secret 非空时启用该后端。
+
+外发给 DeepSeek 的 finding 必须同时满足：`diff_status=changed`、`baseline_status=new`、扫描严重度为 `error`、确定性标签为 `confirmed`，并且拥有路径匹配、未截断的本地上下文证据。每个请求最多 10 条 finding，HTTP 超时为 20 秒，输出上限为 1200 tokens，使用 JSON Output；模型只能引用已发送的结构化上下文行。无候选项、网络/HTTP/JSON/契约错误，或模型漏掉某条 finding 时，受影响项均保留确定性结果，不阻断扫描或合并。CI 缺少 Secret 时根本不选择 DeepSeek 后端，继续运行确定性分析；本地显式选择该后端但未设置 key 会安全地返回配置错误。
+
+本地显式启用示例（仅对不含敏感数据的受控仓库执行）：
+
+```powershell
+$deepSeekSecret = Read-Host 'DeepSeek API Key' -AsSecureString
+$env:DEEPSEEK_API_KEY = [System.Net.NetworkCredential]::new('', $deepSeekSecret).Password
+.\.venv\Scripts\python.exe -m agent.cli `
+  --input artifacts\findings.json `
+  --repo-root . `
+  --diff pr.diff `
+  --triage-store .codesec\triage.json `
+  --backend deepseek `
+  --output-dir artifacts
+Remove-Item Env:DEEPSEEK_API_KEY -ErrorAction SilentlyContinue
+$deepSeekSecret = $null
+```
 
 ### Baseline 与人工处置
 

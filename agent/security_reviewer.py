@@ -5,7 +5,13 @@ from __future__ import annotations
 from typing import Any, Mapping, Protocol, Sequence
 
 from agent.knowledge import HIGH_CONFIDENCE, lookup, signature
-from agent.llm import LlmClient, build_llm_request, parse_llm_response
+from agent.llm import (
+    LlmClient,
+    LlmFormatError,
+    LlmTransportError,
+    build_llm_request,
+    parse_llm_response,
+)
 from agent.models import AnalysisDocument, AnalysisFormatError, AnalysisItem
 
 _SEVERITY_LABEL = {
@@ -16,6 +22,7 @@ _SEVERITY_LABEL = {
 }
 
 _TEST_DIRS = {"test", "tests", "spec", "__tests__"}
+_MAX_GATED_FINDINGS = 10
 
 
 def _is_test_path(path: str) -> bool:
@@ -137,12 +144,12 @@ class DeterministicReviewer:
 class LlmReviewer:
     """LLM backend that delegates to a pluggable client and validates the contract.
 
-    No real model call is wired here: a caller must supply an ``LlmClient``.
-    Findings the model does not cover fall back to deterministic analysis, so a
-    partial or failed response never silently drops a finding.
+    A caller supplies an ``LlmClient`` (normally ``DeepSeekClient``). Only gated
+    findings reach it; every other finding and any failed/missing model item
+    retains its deterministic analysis.
     """
 
-    backend_name = "deepseek"
+    backend_name = "deepseek-gated"
 
     def __init__(self, client: LlmClient | None = None) -> None:
         self._client = client
@@ -157,15 +164,41 @@ class LlmReviewer:
     ) -> AnalysisDocument:
         if self._client is None:
             raise NotImplementedError(
-                "LlmReviewer requires an LlmClient; no real DeepSeek call is wired."
+                "LlmReviewer requires an LlmClient."
             )
+        fallback = DeterministicReviewer()
+        deterministic = fallback.analyze(
+            findings,
+            diff_statuses=diff_statuses,
+            baseline_statuses=baseline_statuses,
+            evidence=evidence,
+        )
         diff_statuses = diff_statuses or {}
         baseline_statuses = baseline_statuses or {}
         evidence = evidence or {}
-        payload = self._client.complete(build_llm_request(findings, evidence))
-        verdicts = parse_llm_response(payload, findings, evidence)
+        fallback_by_id = {item.finding_id: item for item in deterministic.items}
+        candidates = [
+            finding
+            for finding in findings
+            if _is_gated_candidate(
+                finding,
+                fallback_by_id[str(finding["id"])],
+                diff_statuses.get(str(finding["id"]), "unknown"),
+                baseline_statuses.get(str(finding["id"]), "unknown"),
+                evidence.get(str(finding["id"])),
+            )
+        ][:_MAX_GATED_FINDINGS]
+        if not candidates:
+            return deterministic
+        candidate_evidence = {str(finding["id"]): evidence[str(finding["id"])] for finding in candidates}
+        try:
+            payload = self._client.complete(build_llm_request(candidates, candidate_evidence))
+        except LlmTransportError:
+            return deterministic
+        verdicts = _parse_gated_verdicts(payload, candidates, candidate_evidence)
+        if verdicts is None:
+            return deterministic
         verdict_by_id = {verdict.finding_id: verdict for verdict in verdicts}
-        fallback = DeterministicReviewer()
         items = [
             self._to_item(
                 finding,
@@ -173,7 +206,7 @@ class LlmReviewer:
                 diff_statuses.get(str(finding["id"]), "unknown"),
                 baseline_statuses.get(str(finding["id"]), "unknown"),
                 evidence.get(str(finding["id"])),
-                fallback,
+                fallback_by_id[str(finding["id"])],
             )
             for finding in findings
         ]
@@ -186,15 +219,10 @@ class LlmReviewer:
         diff_status: str,
         baseline_status: str,
         context: dict[str, Any] | None,
-        fallback: DeterministicReviewer,
+        fallback: AnalysisItem,
     ) -> AnalysisItem:
         if verdict is None:
-            return fallback._analyze_finding(
-                finding,
-                diff_status=diff_status,
-                baseline_status=baseline_status,
-                evidence=context,
-            )
+            return fallback
         return AnalysisItem(
             finding_id=str(finding["id"]),
             label=verdict.label,
@@ -208,6 +236,67 @@ class LlmReviewer:
             evidence=context,
             evidence_refs=tuple(ref.to_dict() for ref in verdict.evidence_refs),
         )
+
+
+def _is_gated_candidate(
+    finding: Mapping[str, Any],
+    deterministic_item: AnalysisItem,
+    diff_status: str,
+    baseline_status: str,
+    evidence: Mapping[str, Any] | None,
+) -> bool:
+    """Require PR novelty, priority, and complete inspectable evidence."""
+    if (
+        diff_status != "changed"
+        or baseline_status != "new"
+        or str(finding.get("severity", "")).lower() != "error"
+        or deterministic_item.label != "confirmed"
+        or not evidence
+        or evidence.get("truncated")
+        or evidence.get("path") != finding.get("path")
+        or not isinstance(evidence.get("snippet"), str)
+        or not evidence.get("snippet")
+    ):
+        return False
+    start = evidence.get("start_line")
+    end = evidence.get("end_line")
+    digest = evidence.get("sha256")
+    return (
+        isinstance(start, int)
+        and isinstance(end, int)
+        and start <= end
+        and isinstance(digest, str)
+        and len(digest) == 64
+    )
+
+
+def _parse_gated_verdicts(
+    payload: Mapping[str, Any],
+    candidates: Sequence[dict[str, Any]],
+    evidence: Mapping[str, dict[str, Any]],
+) -> tuple[Any, ...] | None:
+    """Keep valid model items while rejecting malformed items independently.
+
+    A malformed top-level response is a failed request and returns ``None``.
+    A malformed individual item is omitted so its original deterministic item
+    remains in the final document.
+    """
+    if payload.get("schema_version") != "1.0" or not isinstance(payload.get("items"), list):
+        return None
+    verdicts: list[Any] = []
+    seen_ids: set[str] = set()
+    for item in payload["items"]:
+        try:
+            verdict = parse_llm_response(
+                {"schema_version": "1.0", "items": [item]}, candidates, evidence
+            )[0]
+        except LlmFormatError:
+            continue
+        if verdict.finding_id in seen_ids:
+            continue
+        seen_ids.add(verdict.finding_id)
+        verdicts.append(verdict)
+    return tuple(verdicts)
 
 
 def analyze(
