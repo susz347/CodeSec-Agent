@@ -13,7 +13,7 @@ _KNOWN_SEVERITIES = {"error", "warning", "info"}
 
 @dataclass(frozen=True)
 class Finding:
-    """A normalized security finding produced by Semgrep."""
+    """A normalized security finding produced by a scanner."""
 
     id: str
     tool: str
