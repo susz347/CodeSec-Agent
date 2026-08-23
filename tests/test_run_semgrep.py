@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -73,8 +74,9 @@ class RunSemgrepTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             scripts = Path(temporary_directory) / "Scripts"
             scripts.mkdir()
-            python_executable = scripts / "python.exe"
-            semgrep_executable = scripts / "semgrep.exe"
+            suffix = ".exe" if os.name == "nt" else ""
+            python_executable = scripts / f"python{suffix}"
+            semgrep_executable = scripts / f"semgrep{suffix}"
             python_executable.touch()
             semgrep_executable.touch()
             artifacts = Path(temporary_directory) / "artifacts"
