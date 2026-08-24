@@ -35,25 +35,25 @@
 
 ## 5. 门控 DeepSeek
 
-- [ ] 默认后端为 `deterministic`，不调用模型、不访问网络。
-- [ ] `--backend deepseek` 且未设置 `DEEPSEEK_API_KEY` 时返回干净配置错误（非堆栈/密钥泄漏）。
-- [ ] 有 key 时仅 `changed + new + error + confirmed + code 非空 + 完整未截断证据` 的 finding 外发，单批 ≤ 10。
-- [ ] 网络/HTTP/JSON/契约错误降级为确定性分析，`analysis.json` 的 `backend` 字段如实反映。
-- [ ] 日志、报告、产物、评论中均无 `DEEPSEEK_API_KEY`。
+- [x] 默认后端为 `deterministic`，不调用模型、不访问网络。
+- [x] `--backend deepseek` 且未设置 `DEEPSEEK_API_KEY` 时返回干净配置错误（非堆栈/密钥泄漏）。
+- [x] 有 key 时仅 `changed + new + error + confirmed + code 非空 + 完整未截断证据` 的 finding 外发，单批 ≤ 10。
+- [x] 网络/HTTP/JSON/契约错误降级为确定性分析，`analysis.json` 的 `backend` 字段如实反映。
+- [x] 日志、报告、产物、评论中均无 DeepSeek 密钥值（变量名或 GitHub 的掩码不构成密钥泄漏）。
 
 ## 6. CI 闭环
 
-- [ ] `security-scan.yml` 在同仓库、非 Bot 的 PR 上跑绿（`review`/`scan`/`test` 三检查通过）。
-- [ ] PR 摘要成功发布，且不含源码片段或凭据。
-- [ ] 上传产物步骤配置 `retention-days: 30`（见 workflow 上传步骤）。
-- [ ] `test.yml` 完整单测通过。
-- [ ] Fork PR 与 Bot 触发被跳过，未使用 `pull_request_target`。
+- [x] `security-scan.yml` 在同仓库、非 Bot 的 PR 上跑绿（`review`/`scan`/`test` 三检查通过）。
+- [x] PR 摘要成功发布，且不含源码片段或凭据。
+- [x] 上传产物步骤配置 `retention-days: 30`（见 workflow 上传步骤）。
+- [x] `test.yml` 完整单测通过。
+- [x] Fork PR 与 Bot 触发被跳过，未使用 `pull_request_target`。
 
 ## 7. 安全边界
 
 - [ ] Git 历史、workflow、`.pr_agent.toml`、日志中无 API Key 或 PAT。
 - [x] 原始扫描产物（`*-result.json`）与含 evidence 的报告按敏感数据处置（见 [保留策略](retention-policy.md)）。
-- [ ] 验证 PR 已关闭且未合并；验证分支、临时探针、环境变量与不再需要的 PAT 已清理。
+- [x] 验证 PR 已关闭且未合并；验证分支、临时探针、环境变量与不再需要的 PAT 已清理。
 
 ## 8. 验收证据留存
 
@@ -73,4 +73,10 @@
 - 结构性行为验证：`tests.test_context`、`tests.test_diff`、`tests.test_triage`、`tests.test_reporting_cli` 共 40 项通过；1 项 Windows 符号链接测试因平台不支持跳过。
 - 报告样例：[`examples/security-report.md`](../examples/security-report.md) 为仓库内保留的非敏感报告样例。本次本地 `examples/demo/artifacts/` 仅作验证，按保留策略在提交前删除，不提交。
 
-第 5 节、第 6 节和第 7 节中与受控 PR、Secret、CI、探针清理相关的条目，仍待任务 2 的真实 PR 验证完成后再勾选。
+## 已留存的门控验证证据（2026-08-24）
+
+- 受控同仓库 PR [#10](https://github.com/susz347/CodeSec-Agent/pull/10) 的最终 `review`、`scan`、`test` 均通过；`scan` run 为 `32738169497`。
+- 该 PR 的无敏感验证评论记录 `Analysis backend: deepseek-gated`，证明实际门控调用获得了合格的结构化结果；候选 finding 均为变更、新增、高危、已确认且有完整证据的合成探针。
+- 无 key 路径返回干净的配置错误（退出码 1）；不可达端点路径降级为 `deterministic`，未泄漏密钥或堆栈。
+- PR #10 已关闭且 `mergedAt=null`；其远程与本地 `codex/gated-deepseek-validation` 分支、探针文件、原始扫描/分析目录及临时下载目录均已删除。
+- PR 评论复核未发现密钥变量名或密钥值；工作流日志中的 Secret 值由 GitHub 掩码。第 7 节的 Git 全历史凭据审计仍须在单独安全审计中完成。
