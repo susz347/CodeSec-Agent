@@ -85,7 +85,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BACKEND="$(python -c 'import json; print(json.load(open("artifacts/analysis.json", encoding="utf-8"))["backend"])')"
-          test "$BACKEND" = "deepseek-gated"
+          if [ "$BACKEND" != "deepseek-gated" ]; then
+            printf 'Temporary gated DeepSeek validation backend: %s\n' "$BACKEND"
+            exit 1
+          fi
           printf '## Temporary gated DeepSeek validation\n\n- Analysis backend: `%s`\n- Result: passed\n' "$BACKEND" > artifacts/deepseek-validation.md
           gh pr comment "${{ github.event.pull_request.number }}" --body-file artifacts/deepseek-validation.md
 
