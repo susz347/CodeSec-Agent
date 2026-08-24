@@ -1,0 +1,122 @@
+{
+  "schema_version": "1.0",
+  "baseline": {
+    "generated_at": "2026-08-24T14:36:45.079232Z",
+    "findings": [
+      {
+        "fingerprint": "29e2b5312016f79187621866",
+        "tool": "semgrep",
+        "rule_id": "python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected",
+        "path": "agent/llm.py"
+      },
+      {
+        "fingerprint": "de182e057760ad671cc7ff60",
+        "tool": "semgrep",
+        "rule_id": "python.lang.security.use-defused-xml.use-defused-xml",
+        "path": "reporting/render_pdf.py"
+      },
+      {
+        "fingerprint": "5c2a92c57094cd498d446c56",
+        "tool": "bandit",
+        "rule_id": "B310",
+        "path": "agent/llm.py"
+      },
+      {
+        "fingerprint": "a5b36850570f25299460c421",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "reporting/render_docx.py"
+      },
+      {
+        "fingerprint": "b0ee5312040af43616575888",
+        "tool": "bandit",
+        "rule_id": "B603",
+        "path": "reporting/render_docx.py"
+      },
+      {
+        "fingerprint": "570b82146c76d1430ab4c12a",
+        "tool": "bandit",
+        "rule_id": "B406",
+        "path": "reporting/render_pdf.py"
+      },
+      {
+        "fingerprint": "08615d93fae7c22588abf178",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "scanner/run_bandit.py"
+      },
+      {
+        "fingerprint": "72ab8f060c3688386ad90623",
+        "tool": "bandit",
+        "rule_id": "B603",
+        "path": "scanner/run_bandit.py"
+      },
+      {
+        "fingerprint": "7ef8d1670c38d2e3f828f080",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "scanner/run_npm_audit.py"
+      },
+      {
+        "fingerprint": "c4f2c11c1fe5fc5475a4a8ff",
+        "tool": "bandit",
+        "rule_id": "B603",
+        "path": "scanner/run_npm_audit.py"
+      },
+      {
+        "fingerprint": "173240e6c7e330502c15a59d",
+        "tool": "bandit",
+        "rule_id": "B603",
+        "path": "scanner/run_npm_audit.py"
+      },
+      {
+        "fingerprint": "5249c1e09417e0632eb03aac",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "scanner/run_semgrep.py"
+      },
+      {
+        "fingerprint": "5d650a50b45d51cfdbea0fb5",
+        "tool": "bandit",
+        "rule_id": "B603",
+        "path": "scanner/run_semgrep.py"
+      },
+      {
+        "fingerprint": "1cbfc6a8ceed5b9a1f3d7c63",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "tests/test_render_docx.py"
+      },
+      {
+        "fingerprint": "84f3b6bbe78b5058a303b771",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "tests/test_run_bandit.py"
+      },
+      {
+        "fingerprint": "a6db901fde4a9c0f99825704",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "tests/test_run_npm_audit.py"
+      },
+      {
+        "fingerprint": "603b3a98c2ab827f5b17568b",
+        "tool": "bandit",
+        "rule_id": "B404",
+        "path": "tests/test_run_semgrep.py"
+      }
+    ]
+  },
+  "dispositions": [
+    {
+      "fingerprint": "603b3a98c2ab827f5b17568b",
+      "resolution": "false_positive",
+      "reviewer": "codex-trial",
+      "machine_label": "possible_false_positive",
+      "note": "Bandit B404 detects only a subprocess import in a scanner unit test; this test-only path introduces no production process-execution behavior.",
+      "reviewed_at": "2026-08-24T14:37:58.920201Z",
+      "tool": "bandit",
+      "rule_id": "B404"
+    }
+  ]
+}
