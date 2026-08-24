@@ -51,7 +51,7 @@
 
 ## 7. 安全边界
 
-- [ ] Git 历史、workflow、`.pr_agent.toml`、日志中无 API Key 或 PAT。
+- [x] Git 历史、workflow、`.pr_agent.toml`、日志中无 API Key 或 PAT。
 - [x] 原始扫描产物（`*-result.json`）与含 evidence 的报告按敏感数据处置（见 [保留策略](retention-policy.md)）。
 - [x] 验证 PR 已关闭且未合并；验证分支、临时探针、环境变量与不再需要的 PAT 已清理。
 
@@ -79,4 +79,4 @@
 - 该 PR 的无敏感验证评论记录 `Analysis backend: deepseek-gated`，证明实际门控调用获得了合格的结构化结果；候选 finding 均为变更、新增、高危、已确认且有完整证据的合成探针。
 - 无 key 路径返回干净的配置错误（退出码 1）；不可达端点路径降级为 `deterministic`，未泄漏密钥或堆栈。
 - PR #10 已关闭且 `mergedAt=null`；其远程与本地 `codex/gated-deepseek-validation` 分支、探针文件、原始扫描/分析目录及临时下载目录均已删除。
-- PR 评论复核未发现密钥变量名或密钥值；工作流日志中的 Secret 值由 GitHub 掩码。第 7 节的 Git 全历史凭据审计仍须在单独安全审计中完成。
+- Git 全历史与当前受版本控制文件已做已知 DeepSeek/GitHub PAT 格式签名审计，均为 0 命中；PR 评论复核未发现密钥变量名或密钥值，工作流日志中的 Secret 值由 GitHub 掩码。
