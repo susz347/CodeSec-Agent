@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any, Sequence
@@ -11,7 +12,8 @@ from typing import Any, Sequence
 from agent.context import ContextError, read_context
 from agent.diff import classify_finding, parse_unified_diff
 from agent.models import AnalysisDocument, AnalysisFormatError
-from agent.security_reviewer import analyze
+from agent.llm import DEFAULT_DEEPSEEK_MODEL, DeepSeekClient, LlmTransportError
+from agent.security_reviewer import LlmReviewer, analyze
 from agent.triage import TriageFormatError, compare_findings, load as load_triage
 
 
@@ -88,6 +90,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--repo-root", type=Path)
     parser.add_argument("--diff", type=Path)
     parser.add_argument("--triage-store", type=Path)
+    parser.add_argument("--backend", choices=("deterministic", "deepseek"), default="deterministic")
+    parser.add_argument("--deepseek-model", default=DEFAULT_DEEPSEEK_MODEL)
     arguments = parser.parse_args(argv)
     try:
         findings = _load_findings(arguments.input)
@@ -129,8 +133,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 findings, load_triage(arguments.triage_store)
             ).status_by_id
 
+        backend = None
+        if arguments.backend == "deepseek":
+            api_key = os.environ.get("DEEPSEEK_API_KEY", "")
+            if not api_key:
+                raise AnalysisFormatError(
+                    "DEEPSEEK_API_KEY is required when --backend deepseek is selected"
+                )
+            backend = LlmReviewer(DeepSeekClient(api_key, model=arguments.deepseek_model))
         document = analyze(
             {"schema_version": "1.0", "findings": findings},
+            backend=backend,
             diff_statuses=diff_statuses,
             baseline_statuses=baseline_statuses,
             evidence=evidence,
@@ -144,7 +157,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 (markdown_output, render_analysis_markdown(document)),
             ]
         )
-    except (AnalysisFormatError, TriageFormatError, OSError) as error:
+    except (AnalysisFormatError, TriageFormatError, LlmTransportError, OSError) as error:
         print(error, file=sys.stderr)
         return 1
     print(json_output)

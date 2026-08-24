@@ -27,6 +27,12 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn(".codesec/triage.json", workflow)
         self.assertIn("--triage-store .codesec/triage.json", workflow)
 
+    def test_security_scan_enables_deepseek_only_when_secret_is_present(self) -> None:
+        workflow = _workflow("security-scan.yml")
+        self.assertIn("DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}", workflow)
+        self.assertIn('if [ -n "${DEEPSEEK_API_KEY:-}" ]; then', workflow)
+        self.assertIn('ANALYSIS_BACKEND=(--backend deepseek)', workflow)
+
     def test_test_workflow_runs_complete_unittest_suite(self) -> None:
         workflow = _workflow("test.yml")
         self.assertIn("python-version: \"3.12\"", workflow)

@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from agent.cli import main
 from agent.triage import build_baseline, save
@@ -46,6 +47,27 @@ class AgentCliTests(unittest.TestCase):
             )
             output = json.loads((output_dir / "analysis.json").read_text(encoding="utf-8"))
             self.assertEqual(output["items"][0]["baseline_status"], "existing")
+
+    def test_deepseek_backend_uses_only_process_environment_key(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            finding = _finding()
+            input_path = root / "findings.json"
+            input_path.write_text(
+                json.dumps({"schema_version": "1.0", "findings": [finding]}),
+                encoding="utf-8",
+            )
+            output_dir = root / "artifacts"
+            with patch.dict("os.environ", {"DEEPSEEK_API_KEY": "test-key"}, clear=False):
+                with patch("agent.cli.DeepSeekClient") as client_type:
+                    self.assertEqual(
+                        main([
+                            "--input", str(input_path), "--output-dir", str(output_dir),
+                            "--backend", "deepseek",
+                        ]),
+                        0,
+                    )
+            client_type.assert_called_once_with("test-key", model="deepseek-v4-flash")
 
 
 if __name__ == "__main__":
