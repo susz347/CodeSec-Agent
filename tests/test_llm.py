@@ -1,4 +1,5 @@
 import unittest
+from urllib.error import URLError
 from unittest.mock import patch
 
 from agent.llm import (
@@ -111,6 +112,23 @@ class DeepSeekClientTests(unittest.TestCase):
         self.assertIn('"max_tokens": 1200', body)
         self.assertEqual(urlopen.call_args.kwargs["timeout"], 7)
         self.assertEqual(payload, {"schema_version": "1.0", "items": []})
+
+    def test_maps_transport_error_without_exposing_api_key(self) -> None:
+        with patch("agent.llm.urlopen", side_effect=URLError("network unavailable")):
+            with self.assertRaises(LlmTransportError) as raised:
+                DeepSeekClient("test-key").complete({"schema_version": "1.0", "findings": []})
+
+        self.assertEqual(str(raised.exception), "DeepSeek request failed")
+        self.assertNotIn("test-key", str(raised.exception))
+
+    def test_rejects_malformed_completion_content(self) -> None:
+        response = _HttpResponse(b'{"choices":[{"message":{"content":"not json"}}]}')
+        with patch("agent.llm.urlopen", return_value=response):
+            with self.assertRaises(LlmTransportError) as raised:
+                DeepSeekClient("test-key").complete({"schema_version": "1.0", "findings": []})
+
+        self.assertEqual(str(raised.exception), "DeepSeek returned an invalid completion")
+        self.assertNotIn("test-key", str(raised.exception))
 
 
 class ParseLlmResponseTests(unittest.TestCase):
@@ -305,6 +323,19 @@ class LlmReviewerTests(unittest.TestCase):
             evidence=evidence,
         )
         self.assertEqual(len(client.requests[0]["findings"]), 10)
+
+    def test_keeps_code_less_finding_deterministic(self) -> None:
+        code_less = finding()
+        code_less["code"] = None
+        client = FakeClient(verdict_payload("f1", "suspicious", []))
+
+        document = LlmReviewer(client).analyze(
+            [code_less], diff_statuses={"f1": "changed"}, baseline_statuses={"f1": "new"},
+            evidence=self._complete_evidence(),
+        )
+
+        self.assertEqual(client.requests, [])
+        self.assertEqual(document.backend, "deterministic")
 
 
 if __name__ == "__main__":

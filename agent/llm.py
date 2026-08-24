@@ -3,8 +3,9 @@
 The contract pins what a model may return and makes its evidence citations
 machine-verifiable. A model must not assert a verdict in prose; it returns
 structured fields and, for a ``confirmed`` verdict, cites specific source lines
-(``evidence_refs``) that fall inside the context we actually sent it. The
-transport (``LlmClient``) is a protocol only; no real model call is wired here.
+(``evidence_refs``) that fall inside the context we actually sent it.
+``DeepSeekClient`` implements the transport while ``LlmClient`` keeps it
+replaceable for tests and other providers.
 """
 
 from __future__ import annotations
@@ -27,7 +28,7 @@ class LlmTransportError(RuntimeError):
 
 
 _DEEPSEEK_ENDPOINT = "https://api.deepseek.com/chat/completions"
-_DEEPSEEK_MODEL = "deepseek-v4-flash"
+DEFAULT_DEEPSEEK_MODEL = "deepseek-v4-flash"
 _DEEPSEEK_MAX_TOKENS = 1200
 _DEEPSEEK_TIMEOUT_SECONDS = 20
 _SYSTEM_PROMPT = (
@@ -68,7 +69,7 @@ class LlmVerdict:
 
 
 class LlmClient(Protocol):
-    """Transport for calling a language model. Not implemented here."""
+    """Transport for calling a language model."""
 
     def complete(self, request: dict[str, Any]) -> dict[str, Any]: ...
 
@@ -85,7 +86,7 @@ class DeepSeekClient:
         self,
         api_key: str,
         *,
-        model: str = _DEEPSEEK_MODEL,
+        model: str = DEFAULT_DEEPSEEK_MODEL,
         timeout_seconds: int = _DEEPSEEK_TIMEOUT_SECONDS,
         max_tokens: int = _DEEPSEEK_MAX_TOKENS,
         endpoint: str = _DEEPSEEK_ENDPOINT,

@@ -12,7 +12,7 @@ from typing import Any, Sequence
 from agent.context import ContextError, read_context
 from agent.diff import classify_finding, parse_unified_diff
 from agent.models import AnalysisDocument, AnalysisFormatError
-from agent.llm import DeepSeekClient, LlmTransportError
+from agent.llm import DEFAULT_DEEPSEEK_MODEL, DeepSeekClient, LlmTransportError
 from agent.security_reviewer import LlmReviewer, analyze
 from agent.triage import TriageFormatError, compare_findings, load as load_triage
 
@@ -91,7 +91,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--diff", type=Path)
     parser.add_argument("--triage-store", type=Path)
     parser.add_argument("--backend", choices=("deterministic", "deepseek"), default="deterministic")
-    parser.add_argument("--deepseek-model", default="deepseek-v4-flash")
+    parser.add_argument("--deepseek-model", default=DEFAULT_DEEPSEEK_MODEL)
     arguments = parser.parse_args(argv)
     try:
         findings = _load_findings(arguments.input)

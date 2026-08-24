@@ -246,11 +246,16 @@ def _is_gated_candidate(
     evidence: Mapping[str, Any] | None,
 ) -> bool:
     """Require PR novelty, priority, and complete inspectable evidence."""
+    code = finding.get("code")
     if (
         diff_status != "changed"
         or baseline_status != "new"
         or str(finding.get("severity", "")).lower() != "error"
         or deterministic_item.label != "confirmed"
+        # Dependency-audit findings point to lockfiles, not inspectable source.
+        # Keep them deterministic instead of sending low-value context off-host.
+        or not isinstance(code, str)
+        or not code.strip()
         or not evidence
         or evidence.get("truncated")
         or evidence.get("path") != finding.get("path")
