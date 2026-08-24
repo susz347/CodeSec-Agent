@@ -26,13 +26,18 @@ def _bandit_executable() -> str:
     return installed.as_posix() if installed.is_file() else "bandit"
 
 
-def run_scan(target: Path, artifacts: Path) -> Path:
+def run_scan(
+    target: Path, artifacts: Path, *, excludes: Sequence[str] = ()
+) -> Path:
     artifacts.mkdir(parents=True, exist_ok=True)
     raw = artifacts / "bandit-result.json"
     findings = artifacts / "bandit-findings.json"
     raw.unlink(missing_ok=True)
     findings.unlink(missing_ok=True)
-    command = [_bandit_executable(), "-r", target.as_posix(), "-f", "json", "-o", raw.as_posix()]
+    command = [_bandit_executable(), "-r", target.as_posix()]
+    if excludes:
+        command.extend(("--exclude", ",".join(excludes)))
+    command.extend(("-f", "json", "-o", raw.as_posix()))
     try:
         result = subprocess.run(command, capture_output=True, check=False, text=True, encoding="utf-8", errors="replace")
     except FileNotFoundError as error:
@@ -54,9 +59,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a local Bandit security scan.")
     parser.add_argument("--target", type=Path, default=Path("."))
     parser.add_argument("--artifacts", type=Path, default=Path("artifacts"))
+    parser.add_argument("--exclude", action="append", default=[])
     arguments = parser.parse_args(argv)
     try:
-        print(run_scan(arguments.target, arguments.artifacts))
+        print(run_scan(arguments.target, arguments.artifacts, excludes=arguments.exclude))
     except BanditRunError as error:
         print(error, file=sys.stderr)
         return 1

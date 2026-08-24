@@ -19,31 +19,30 @@
 
 前置：仓库根目录有 Python 3.12 `.venv`、已 `pip install -r requirements-dev.txt`、已 `npm install --ignore-scripts`（见 [部署步骤](../../docs/deployment-steps.md)）。
 
-在**本目录**执行三路扫描（npm audit 以本目录为目标以读取这里的 lockfile）：
+在**仓库根目录**执行三路扫描（npm audit 以演示目录为目标以读取这里的 lockfile）：
 
 ```powershell
-cd examples\demo
-..\..\.venv\Scripts\python.exe -m scanner.run_semgrep --target . --artifacts artifacts
-..\..\.venv\Scripts\python.exe -m scanner.run_bandit --target . --artifacts artifacts
-..\..\.venv\Scripts\python.exe -m scanner.run_npm_audit --target . --artifacts artifacts
+.\.venv\Scripts\python.exe -m scanner.run_semgrep --target examples\demo --artifacts examples\demo\artifacts
+.\.venv\Scripts\python.exe -m scanner.run_bandit --target examples\demo --artifacts examples\demo\artifacts
+.\.venv\Scripts\python.exe -m scanner.run_npm_audit --target examples\demo --artifacts examples\demo\artifacts
 ```
 
 确定性分析 + 上下文证据 + 五格式报告：
 
 ```powershell
-..\..\.venv\Scripts\python.exe -m agent.cli `
-  --input artifacts\findings.json `
-  --input artifacts\bandit-findings.json `
-  --input artifacts\npm-audit-findings.json `
+.\.venv\Scripts\python.exe -m agent.cli `
+  --input examples\demo\artifacts\findings.json `
+  --input examples\demo\artifacts\bandit-findings.json `
+  --input examples\demo\artifacts\npm-audit-findings.json `
   --repo-root . `
-  --output-dir artifacts
+  --output-dir examples\demo\artifacts
 
-..\..\.venv\Scripts\python.exe -m reporting.cli `
-  --input artifacts\findings.json `
-  --input artifacts\bandit-findings.json `
-  --input artifacts\npm-audit-findings.json `
-  --analysis artifacts\analysis.json `
-  --output-dir artifacts `
+.\.venv\Scripts\python.exe -m reporting.cli `
+  --input examples\demo\artifacts\findings.json `
+  --input examples\demo\artifacts\bandit-findings.json `
+  --input examples\demo\artifacts\npm-audit-findings.json `
+  --analysis examples\demo\artifacts\analysis.json `
+  --output-dir examples\demo\artifacts `
   --format all
 ```
 
@@ -57,4 +56,4 @@ cd examples\demo
 
 ## 清理
 
-演示完成后删除本地 `artifacts/`（已被 `.gitignore` 排除，不应提交）。门控 DeepSeek 的验收用真实受控仓库单独验证，不在本样例中注入任何密钥。
+演示完成后删除本地 `examples/demo/artifacts/`（已被 `.gitignore` 排除，不应提交）。门控 DeepSeek 的验收用真实受控仓库单独验证，不在本样例中注入任何密钥。

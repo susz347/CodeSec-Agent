@@ -37,6 +37,23 @@ class RunBanditTests(unittest.TestCase):
                 with self.assertRaises(BanditRunError):
                     run_scan(Path("."), artifacts)
 
+    def test_passes_requested_exclusions_to_bandit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = Path(directory) / "artifacts"
+
+            def write_raw(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+                Path(command[-1]).write_text(json.dumps(PAYLOAD), encoding="utf-8")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            with patch("scanner.run_bandit.subprocess.run", side_effect=write_raw) as run:
+                run_scan(Path("."), artifacts, excludes=("examples/demo", "generated"))
+
+            command = run.call_args.args[0]
+            self.assertEqual(
+                command[command.index("-r") + 2 : command.index("-f")],
+                ["--exclude", "examples/demo,generated"],
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

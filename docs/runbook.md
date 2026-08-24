@@ -2,7 +2,7 @@
 
 本文是 CodeSec-Agent 的**唯一运维主文档**：出现异常时按本文定位、降级、重跑与收尾。目标是换人接手也能稳定运行，不依赖个人对命令、配置或异常处置的记忆。
 
-进入处置前先完成 [发布验收清单](acceptance-checklist.md)（前置检查）；处置收尾时按 [产物保留与归档策略](retention-policy.md) 执行删除/归档（收尾步骤）。这两份文档待后续补齐，本文先用占位引用。
+进入处置前先完成 [发布验收清单](acceptance-checklist.md)（前置检查）；处置收尾时按 [产物保留与归档策略](retention-policy.md) 执行删除/归档（收尾步骤）。
 
 部署与运行细节见 [部署与运行步骤](deployment-steps.md)；开发状态见 [路线图](roadmap.md) 与 [任务清单](project-checklist.md)。
 
@@ -182,7 +182,7 @@
 
 1. 在 DeepSeek 控制台生成新 Key。
 2. 更新仓库 Secret：`Settings → Secrets and variables → Actions → DEEPSEEK_API_KEY → Update`。只粘贴值，不截图、不写文件。
-3. 用一次真实 PR 或 `workflow_dispatch` 验证两条路径均正常（PR-Agent 出 review；门控分析 `backend` 为 `deepseek-gated`）。
+3. 用一次同仓库、非 Bot 的受控 PR 验证两条路径均正常：PR-Agent 发布 review，且至少一条满足 `changed + new + error + confirmed` 的 finding 让门控分析 `backend` 为 `deepseek-gated`。`workflow_dispatch` 不生成 PR diff，不能验证这两项。
 4. 在 DeepSeek 控制台撤销旧 Key。
 5. 复查日志与评论，确认无 Key 泄露。
 
@@ -210,4 +210,4 @@
 
 ## 6. 收尾：产物保留与归档
 
-处置结束后按 [产物保留与归档策略](retention-policy.md)（待创建）执行：明确 `retention-days: 30` 到期后的归档/删除责任人，覆盖原始产物、含 evidence 的报告与本地 `artifacts/`，避免敏感数据长期残留。
+处置结束后按 [产物保留与归档策略](retention-policy.md)执行：明确 `retention-days: 30` 到期后的归档/删除责任人，覆盖原始产物、含 evidence 的报告与本地 `artifacts/`，避免敏感数据长期残留。

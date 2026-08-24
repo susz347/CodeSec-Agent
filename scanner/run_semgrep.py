@@ -36,7 +36,9 @@ def _command_error(completed: subprocess.CompletedProcess[str]) -> SemgrepRunErr
     )
 
 
-def run_scan(target: Path, artifacts: Path) -> Path:
+def run_scan(
+    target: Path, artifacts: Path, *, excludes: Sequence[str] = ()
+) -> Path:
     """Run Semgrep once and return the normalized findings artifact path."""
     artifacts.mkdir(parents=True, exist_ok=True)
     raw_output = artifacts / "semgrep-result.json"
@@ -50,10 +52,10 @@ def run_scan(target: Path, artifacts: Path) -> Path:
         "--config",
         RULESET,
         "--json",
-        "--output",
-        raw_output.as_posix(),
-        target.as_posix(),
     ]
+    for exclusion in excludes:
+        command.extend(("--exclude", exclusion))
+    command.extend(("--output", raw_output.as_posix(), target.as_posix()))
     try:
         completed = subprocess.run(
             command,
@@ -95,9 +97,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Run a local Semgrep security scan.")
     parser.add_argument("--target", type=Path, default=Path("."))
     parser.add_argument("--artifacts", type=Path, default=Path("artifacts"))
+    parser.add_argument("--exclude", action="append", default=[])
     arguments = parser.parse_args(argv)
     try:
-        result = run_scan(arguments.target, arguments.artifacts)
+        result = run_scan(arguments.target, arguments.artifacts, excludes=arguments.exclude)
     except SemgrepRunError as error:
         print(error, file=sys.stderr)
         return 1

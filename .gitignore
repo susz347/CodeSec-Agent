@@ -16,3 +16,4 @@ pr_agent/settings/.secrets.toml
 
 # Local static-analysis artifacts
 /artifacts/
+/examples/demo/artifacts/

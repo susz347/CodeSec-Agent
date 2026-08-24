@@ -33,6 +33,11 @@ class WorkflowTests(unittest.TestCase):
         self.assertIn('if [ -n "${DEEPSEEK_API_KEY:-}" ]; then', workflow)
         self.assertIn('ANALYSIS_BACKEND=(--backend deepseek)', workflow)
 
+    def test_security_scan_excludes_synthetic_demo_from_routine_scans(self) -> None:
+        workflow = _workflow("security-scan.yml")
+        self.assertIn("scanner.run_semgrep --target . --exclude examples/demo", workflow)
+        self.assertIn("scanner.run_bandit --target . --exclude examples/demo", workflow)
+
     def test_test_workflow_runs_complete_unittest_suite(self) -> None:
         workflow = _workflow("test.yml")
         self.assertIn("python-version: \"3.12\"", workflow)

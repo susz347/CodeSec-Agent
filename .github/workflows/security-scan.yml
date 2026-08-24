@@ -48,10 +48,10 @@ jobs:
           git diff --no-ext-diff --unified=0 "$BASE_SHA" "$HEAD_SHA" -- > artifacts/pr.diff
 
       - name: Run Semgrep
-        run: python -m scanner.run_semgrep --target . --artifacts artifacts
+        run: python -m scanner.run_semgrep --target . --exclude examples/demo --artifacts artifacts
 
       - name: Run Bandit
-        run: python -m scanner.run_bandit --target . --artifacts artifacts
+        run: python -m scanner.run_bandit --target . --exclude examples/demo --artifacts artifacts
 
       - name: Run npm audit
         run: python -m scanner.run_npm_audit --target . --artifacts artifacts
