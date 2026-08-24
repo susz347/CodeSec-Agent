@@ -11,6 +11,8 @@ replaceable for tests and other providers.
 from __future__ import annotations
 
 import json
+import os
+import sys
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -40,6 +42,12 @@ _SYSTEM_PROMPT = (
     "evidence_refs that cite only supplied context lines. Do not provide exploit "
     "instructions."
 )
+
+
+def _emit_temporary_diagnostic(message: str) -> None:
+    """Emit a non-sensitive transport status for the disposable CI probe only."""
+    if os.environ.get("CODESEC_DEEPSEEK_DIAGNOSTIC") == "1":
+        print(f"DeepSeek diagnostic: {message}", file=sys.stderr)
 
 
 @dataclass(frozen=True)
@@ -124,16 +132,23 @@ class DeepSeekClient:
         try:
             with urlopen(http_request, timeout=self._timeout_seconds) as response:
                 response_payload = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        except HTTPError as error:
+            _emit_temporary_diagnostic(f"HTTP status {error.code}")
             raise LlmTransportError("DeepSeek request failed") from error
+        except (URLError, OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            _emit_temporary_diagnostic("transport or response-body failure")
+            raise LlmTransportError("DeepSeek request failed") from error
+        _emit_temporary_diagnostic("response body received")
         try:
             content = response_payload["choices"][0]["message"]["content"]
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("empty model content")
             parsed = json.loads(content)
         except (KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as error:
+            _emit_temporary_diagnostic("completion content invalid or empty")
             raise LlmTransportError("DeepSeek returned an invalid completion") from error
         if not isinstance(parsed, dict):
+            _emit_temporary_diagnostic("completion JSON was not an object")
             raise LlmTransportError("DeepSeek returned a non-object completion")
         return parsed
 
