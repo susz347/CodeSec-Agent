@@ -1,0 +1,9 @@
+{
+  "name": "codesec-demo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Non-sensitive synthetic dependency fixture for the demo scan.",
+  "dependencies": {
+    "lodash": "4.17.20"
+  }
+}

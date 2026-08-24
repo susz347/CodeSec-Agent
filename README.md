@@ -160,5 +160,8 @@ PR-Agent 审查
 - [新手学习指南](docs/beginner-guide.md)
 - [前置知识](docs/prerequisites.md)
 - [部署步骤](docs/deployment-steps.md)
+- [故障 Runbook](docs/runbook.md)
+- [发布验收清单](docs/acceptance-checklist.md)
+- [产物保留与归档策略](docs/retention-policy.md)
 - [项目路线图](docs/roadmap.md)
 - [项目任务清单](docs/project-checklist.md)
