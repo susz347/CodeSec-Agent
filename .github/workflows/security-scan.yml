@@ -79,6 +79,16 @@ jobs:
             "${ANALYSIS_BACKEND[@]}" \
             --output-dir artifacts
 
+      - name: Verify temporary gated DeepSeek validation
+        if: github.event_name == 'pull_request' && github.head_ref == 'codex/gated-deepseek-validation'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BACKEND="$(python -c 'import json; print(json.load(open("artifacts/analysis.json", encoding="utf-8"))["backend"])')"
+          test "$BACKEND" = "deepseek-gated"
+          printf '## Temporary gated DeepSeek validation\n\n- Analysis backend: `%s`\n- Result: passed\n' "$BACKEND" > artifacts/deepseek-validation.md
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file artifacts/deepseek-validation.md
+
       - name: Analyze manually dispatched findings
         if: github.event_name == 'workflow_dispatch'
         env:
