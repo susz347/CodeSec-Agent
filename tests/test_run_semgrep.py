@@ -62,6 +62,25 @@ class RunSemgrepTests(unittest.TestCase):
 
             self.assertFalse((artifacts / "findings.json").exists())
 
+    def test_passes_each_requested_exclusion_to_semgrep(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            artifacts = Path(temporary_directory) / "artifacts"
+
+            def write_raw_output(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+                output = Path(command[command.index("--output") + 1])
+                output.write_text(json.dumps(VALID_PAYLOAD), encoding="utf-8")
+                return subprocess.CompletedProcess(command, 0, "", "")
+
+            with patch("scanner.run_semgrep._semgrep_executable", return_value="semgrep"):
+                with patch("scanner.run_semgrep.subprocess.run", side_effect=write_raw_output) as run:
+                    run_scan(Path("."), artifacts, excludes=("examples/demo", "generated"))
+
+            command = run.call_args.args[0]
+            self.assertEqual(
+                command[command.index("--json") + 1 : command.index("--output")],
+                ["--exclude", "examples/demo", "--exclude", "generated"],
+            )
+
     def test_missing_raw_output_raises(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             artifacts = Path(temporary_directory) / "artifacts"
