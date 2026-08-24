@@ -48,7 +48,7 @@
 
 ## 预期结果
 
-- `artifacts/findings.json`：Semgrep 至少报 `exec-used` 与 subprocess shell 类 finding。
+- `artifacts/findings.json`：Semgrep 至少报 `exec-detected` 与 subprocess shell 类 finding。
 - `artifacts/bandit-findings.json`：Bandit 至少报 B101、B102、B602。
 - `artifacts/npm-audit-findings.json`：npm audit 报 `npm-audit/lodash` 原型污染（severity 归一化为 `error`）。
 - `artifacts/analysis.json`：每条 finding 带 `confirmed`/`suspicious`/`possible_false_positive` 分类与成因/影响/修复建议；`backend` 为 `deterministic`。
