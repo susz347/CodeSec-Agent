@@ -88,6 +88,7 @@ def add_disposition(
     document: dict[str, Any],
     *,
     fingerprint: str,
+    finding: dict[str, object] | None = None,
     resolution: str,
     reviewer: str,
     machine_label: str,
@@ -98,7 +99,11 @@ def add_disposition(
         raise TriageFormatError(f"Unsupported resolution: {resolution}")
     entry = next((item for item in entries if item.get("fingerprint") == fingerprint), None)
     if entry is None:
-        raise TriageFormatError(f"Unknown baseline fingerprint: {fingerprint}")
+        if finding is None:
+            raise TriageFormatError(f"Unknown baseline fingerprint: {fingerprint}")
+        entry = _baseline_entry(finding)
+        if entry["fingerprint"] != fingerprint:
+            raise TriageFormatError("Finding does not match the supplied fingerprint")
     dispositions = [
         item for item in document.get("dispositions", [])
         if isinstance(item, dict) and item.get("fingerprint") != fingerprint
