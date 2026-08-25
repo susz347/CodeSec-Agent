@@ -4,6 +4,8 @@
 
 进入处置前先完成 [发布验收清单](acceptance-checklist.md)（前置检查）；处置收尾时按 [产物保留与归档策略](retention-policy.md) 执行删除/归档（收尾步骤）。
 
+试运行期的真实 PR triage、量化复盘和冻结能力重启条件以[第二阶段运营规范](trial-phase-2.md)为准；逐 PR 的非敏感汇总记录写入[第二阶段运营日志](trial-phase-2-log.md)。
+
 部署与运行细节见 [部署与运行步骤](deployment-steps.md)；开发状态见 [路线图](roadmap.md) 与 [任务清单](project-checklist.md)。
 
 ---

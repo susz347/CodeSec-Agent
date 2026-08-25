@@ -3,6 +3,7 @@
 __pycache__/
 *.py[cod]
 node_modules/
+.worktrees/
 
 # Local credentials
 .env

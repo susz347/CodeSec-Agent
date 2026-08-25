@@ -83,6 +83,12 @@
 
 当前状态：本地报告切片已完成统一报告模型、严格输入校验、多扫描器合并、稳定排序、JSON、Markdown、Excel、DOCX、PDF 渲染，以及任意选中报告组的写入回滚。确定性分析 Agent（`agent/`）已完成确认/可疑/误报分类、本地 CWE/OWASP 知识库、修复建议与增强报告，并生成完整示例报告 `examples/security-report.md`。分析层已扩展上下文证据（`agent/context.py`，安全路径约束 + 行/字节预算）、PR diff 过滤（`agent/diff.py`，changed/unchanged/unknown）和 versioned baseline 消费层（`.codesec/triage.json`，new/existing/unknown），作为机器可验证字段透出。全格式 analysis 已落地：`xlsx`/`docx`/`pdf` 同样渲染分类、成因、影响、修复建议、参考与证据摘要；`reporting/risk.py` 按「分类 > diff > 严重度」做确定性风险排序；`reporting/manifest.py` 输出带 SHA-256 的 `manifest.json` 产物清单，CI 上传固定 `retention-days: 30`。`.github/workflows/security-scan.yml` 与 `reporting.summary` 已就绪；若仓库有 triage 基线，PR 摘要只列新增项，默认只提示、不阻断。真实 DeepSeek 调用、分支推送与合并阻断策略留待单独授权。
 
+## 试运行期 · 第二阶段
+
+P0 发布验收、非敏感 demo 证据、初始 triage baseline 和门控 DeepSeek 受控验证均已完成。当前进入 2–4 周真实 PR 试运行：持续运行现有的非阻断扫描、分析和人工 triage，累积数据后再做 P2 复盘。
+
+试运行范围、退出标准、准确率与运营负担指标，以及冻结能力的重启条件见[第二阶段运营规范](trial-phase-2.md)；每周和每 PR 的去标识化记录见[第二阶段运营日志](trial-phase-2-log.md)。RAG、数值风险评分、Web UI、扫描规则扩展和 merge gate 在本期保持冻结。
+
 ## 后续增强
 
 - 建立 OWASP/CWE 知识库。
