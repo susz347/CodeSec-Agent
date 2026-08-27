@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
-from agent.triage import TriageFormatError, add_disposition, build_baseline, load, save, statistics
+from agent.triage import TriageFormatError, add_disposition, build_baseline, fingerprint, load, save, statistics
 
 
 def _findings(path: Path) -> list[dict[str, object]]:
@@ -32,7 +32,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     baseline.add_argument("--store", required=True, type=Path)
     disposition = commands.add_parser("disposition")
     disposition.add_argument("--store", required=True, type=Path)
-    disposition.add_argument("--fingerprint", required=True)
+    selection = disposition.add_mutually_exclusive_group(required=True)
+    selection.add_argument("--fingerprint")
+    selection.add_argument("--finding-id")
+    disposition.add_argument("--input", type=Path)
     disposition.add_argument("--resolution", required=True, choices=("true_positive", "false_positive", "accepted_risk", "needs_fix"))
     disposition.add_argument("--reviewer", required=True)
     disposition.add_argument("--machine-label", required=True)
@@ -44,7 +47,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         if arguments.command == "baseline":
             save(arguments.store, build_baseline(_findings(arguments.input)))
         elif arguments.command == "disposition":
-            save(arguments.store, add_disposition(load(arguments.store), fingerprint=arguments.fingerprint, resolution=arguments.resolution, reviewer=arguments.reviewer, machine_label=arguments.machine_label, note=arguments.note))
+            selected_finding: dict[str, object] | None = None
+            selected_fingerprint = arguments.fingerprint
+            if arguments.finding_id is not None:
+                if arguments.input is None:
+                    raise TriageFormatError("--input is required with --finding-id")
+                matches = [
+                    finding for finding in _findings(arguments.input)
+                    if str(finding.get("id", "")) == arguments.finding_id
+                ]
+                if len(matches) != 1:
+                    raise TriageFormatError(
+                        f"Expected exactly one finding with id: {arguments.finding_id}"
+                    )
+                selected_finding = matches[0]
+                selected_fingerprint = fingerprint(selected_finding)
+            elif arguments.input is not None:
+                raise TriageFormatError("--input requires --finding-id")
+            save(
+                arguments.store,
+                add_disposition(
+                    load(arguments.store),
+                    fingerprint=selected_fingerprint,
+                    finding=selected_finding,
+                    resolution=arguments.resolution,
+                    reviewer=arguments.reviewer,
+                    machine_label=arguments.machine_label,
+                    note=arguments.note,
+                ),
+            )
         else:
             print(json.dumps(statistics(load(arguments.store)), ensure_ascii=False, indent=2))
     except (TriageFormatError, OSError) as error:

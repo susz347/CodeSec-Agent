@@ -27,12 +27,15 @@
 ```powershell
 .\.venv\Scripts\python.exe -m agent.triage_cli disposition `
   --store .codesec\triage.json `
-  --fingerprint <fingerprint> `
+  --input artifacts\findings.json `
+  --finding-id <finding-id> `
   --resolution <true_positive|false_positive|accepted_risk|needs_fix> `
   --reviewer <human-reviewer> `
   --machine-label <confirmed|suspicious|possible_false_positive> `
   --note "<one-sentence, non-sensitive reason>"
 ```
+
+该命令只在本地读取规范化 finding 文档以计算 fingerprint；store 的新 disposition 仍只保存 fingerprint、tool、rule、人工结论、reviewer、机器标签、时间和一句话依据，不保存 path、源码、message、evidence、PR URL 或原始报告。处置已有 baseline finding 时仍可使用 `--fingerprint <fingerprint>`。
 
 `.codesec/triage.json`只保存基线和处置记录；不存源码、报告、耗时或遗漏。耗时、PR 聚合数据和去标识化的漏报记录写入[第二阶段日志](trial-phase-2-log.md)。`baseline` 命令会重建 store；试运行期间不得用它覆盖已有处置，除非先备份并通过单独 PR 审核该基线变更。
 
